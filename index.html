@@ -3,11 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+  <title>Camera FFT CPPN AV Breeder</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background: #111; color: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
+    .panel { width: min(1150px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+=======
   <title>Camera FFT + CPPN Tiles (with NEAT-style recombination)</title>
   <style>
     :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
     body { margin: 0; background: #111; color: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
     .panel { width: min(1120px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+>>>>>>> main
     h1 { margin: 0 0 12px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
     .field { flex: 1 1 240px; }
@@ -15,7 +23,10 @@
     select, button, input[type='range'] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #232323; color: #f5f5f5; box-sizing: border-box; }
     button { cursor: pointer; font-weight: bold; }
     button:hover { background: #2f2f2f; }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+=======
     .controls button { flex: 1 1 180px; }
+>>>>>>> main
     #appView { display: none; }
 
     .topTiles { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 10px; margin-top: 6px; }
@@ -25,6 +36,20 @@
     .tileLabel { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .75rem; z-index: 1; }
     video, canvas { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    .controls button { flex: 1 1 180px; }
+
+    .placeholderGrid { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .placeholderTile { aspect-ratio: 16 / 9; border: 2px solid #4b4b4b; border-radius: 8px; overflow: hidden; position: relative; background: #111; cursor: pointer; }
+    .placeholderTile.active { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,.35); }
+    .placeholderTile.starred { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,.35); }
+    .placeholderTile .name { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #d1d5db; }
+    .placeholderTile .meta { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #a7f3d0; }
+    .starBtn { position: absolute; left: 6px; top: 6px; z-index: 3; border: 1px solid #64748b; background: rgba(15,23,42,.8); color: #cbd5e1; width: 32px; height: 28px; padding: 0; border-radius: 6px; font-size: 16px; line-height: 1; }
+    .starBtn.on { color: #fde68a; border-color: #f59e0b; background: rgba(120,53,15,.75); }
+
+    .instruction { margin-top: 12px; font-size: 1.02rem; }
+=======
     .placeholderGrid { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .placeholderTile { aspect-ratio: 16 / 9; border: 2px solid #4b4b4b; border-radius: 8px; overflow: hidden; position: relative; background: #111; cursor: pointer; }
     .placeholderTile.active { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,.35); }
@@ -32,6 +57,7 @@
     .placeholderTile .meta { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #a7f3d0; }
 
     .instruction { margin-top: 12px; font-size: 1.05rem; }
+>>>>>>> main
     .status { margin-top: 10px; color: #facc15; min-height: 1.2em; }
   </style>
 </head>
@@ -54,7 +80,11 @@
   </section>
 
   <section class="panel" id="appView">
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    <h1>Camera + FFT + CPPN AV Tiles</h1>
+=======
     <h1>Camera + FFT + CPPN Placeholders</h1>
+>>>>>>> main
 
     <div class="row">
       <div class="field">
@@ -62,20 +92,35 @@
         <input id="scaleSlider" type="range" min="1" max="8" value="4" step="1" />
       </div>
       <div class="field">
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+        <label for="smoothSlider">FFT running-mean smoothing: <span id="smoothValue">0.60</span></label>
+        <input id="smoothSlider" type="range" min="0" max="0.98" value="0.6" step="0.01" />
+      </div>
+      <div class="field">
+=======
+>>>>>>> main
         <label for="mutRateSlider">Mutation rate: <span id="mutRateValue">0.20</span></label>
         <input id="mutRateSlider" type="range" min="0" max="0.6" value="0.2" step="0.01" />
       </div>
     </div>
 
     <div class="row controls">
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      <button id="recombineBtn">Recombine Star-Marked Tiles (NEAT-style + Mutation)</button>
+=======
       <button id="recombineBtn">NEAT-style Recombine Top Parents</button>
+>>>>>>> main
       <button id="randomizeBtn">Randomize Population</button>
       <button id="stopTileSoundBtn">Stop Tile Sound</button>
     </div>
 
     <div class="topTiles">
       <div class="tile selectable" id="videoTile">
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+        <span class="tileLabel">Live Camera (click: 440Hz check tone)</span>
+=======
         <span class="tileLabel">Live Camera (click to select: 440Hz)</span>
+>>>>>>> main
         <video id="liveVideo" autoplay muted playsinline></video>
       </div>
       <div class="tile">
@@ -84,7 +129,11 @@
       </div>
     </div>
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    <p class="instruction">Click a tile to hear CPPN-generated sound (base + rhythm + mid/high). Star at least 2 tiles; when 2+ are starred, recombination with mutation runs automatically.</p>
+=======
     <p class="instruction">Click a placeholder tile to hear its own sound. Use the recombine button to breed next generation from top-rated tiles.</p>
+>>>>>>> main
     <div class="placeholderGrid" id="placeholderGrid"></div>
     <div class="status" id="appStatus"></div>
   </section>
@@ -103,6 +152,11 @@
     const placeholderGrid = document.getElementById('placeholderGrid');
     const scaleSlider = document.getElementById('scaleSlider');
     const scaleValue = document.getElementById('scaleValue');
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    const smoothSlider = document.getElementById('smoothSlider');
+    const smoothValue = document.getElementById('smoothValue');
+=======
+>>>>>>> main
     const mutRateSlider = document.getElementById('mutRateSlider');
     const mutRateValue = document.getElementById('mutRateValue');
     const recombineBtn = document.getElementById('recombineBtn');
@@ -110,6 +164,20 @@
     const stopTileSoundBtn = document.getElementById('stopTileSoundBtn');
 
     let stream, audioContext, sinkAudio;
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    let videoOscillator, toneMasterGain;
+    let selectedTileId = -1;
+    let fftFrame = 0, cppnFrame = 0;
+
+    let scaleDownFactor = Number(scaleSlider.value);
+    let fftSmooth = Number(smoothSlider.value);
+    let mutationRate = Number(mutRateSlider.value);
+
+    let fftBins = new Float32Array(128);
+    let rawBins = new Float32Array(128);
+    let prevBins = new Float32Array(128);
+    let fftEnergy = 0, fftCentroid = 0, fftFlux = 0;
+=======
     let videoOscillator, tileOscillator, gainNode;
     let fftFrame = 0, cppnFrame = 0;
     let scaleDownFactor = Number(scaleSlider.value);
@@ -118,6 +186,7 @@
     let fftEnergy = 0, fftCentroid = 0, fftFlux = 0;
     let prevBins = new Float32Array(128);
     let selectedTileId = -1;
+>>>>>>> main
 
     const workCanvas = document.createElement('canvas');
     const workCtx = workCanvas.getContext('2d', { willReadFrequently: true });
@@ -162,6 +231,10 @@
         setStatus(setupStatus, 'enumerateDevices is not supported in this browser.');
         return;
       }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoInputs = devices.filter((d) => d.kind === 'videoinput');
       const audioOutputs = devices.filter((d) => d.kind === 'audiooutput');
@@ -189,6 +262,10 @@
       const re = new Float32Array(n);
       const im = new Float32Array(n);
       re.set(samples);
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
       let j = 0;
       for (let i = 1; i < n; i += 1) {
         let bit = n >> 1;
@@ -196,6 +273,10 @@
         j ^= bit;
         if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
       }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
       for (let len = 2; len <= n; len <<= 1) {
         const ang = (-2 * Math.PI) / len;
         const wlenRe = Math.cos(ang);
@@ -216,6 +297,10 @@
           }
         }
       }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
       const mags = new Float32Array(n / 2);
       for (let i = 0; i < n / 2; i += 1) mags[i] = Math.hypot(re[i], im[i]);
       return mags;
@@ -234,12 +319,28 @@
       return out;
     }
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    function smoothBins(newBins) {
+      for (let i = 0; i < fftBins.length; i += 1) {
+        fftBins[i] = fftSmooth * fftBins[i] + (1 - fftSmooth) * newBins[i];
+      }
+    }
+
     function drawFFT() {
       if (!liveVideo.videoWidth || !liveVideo.videoHeight) { fftFrame = requestAnimationFrame(drawFFT); return; }
+
+=======
+    function drawFFT() {
+      if (!liveVideo.videoWidth || !liveVideo.videoHeight) { fftFrame = requestAnimationFrame(drawFFT); return; }
+>>>>>>> main
       const w = Math.max(32, Math.floor(liveVideo.videoWidth / scaleDownFactor));
       const h = Math.max(18, Math.floor(liveVideo.videoHeight / scaleDownFactor));
       workCanvas.width = w; workCanvas.height = h;
       workCtx.drawImage(liveVideo, 0, 0, w, h);
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
       const y = Math.floor(h / 2);
       const row = workCtx.getImageData(0, y, w, 1).data;
       const n = nextPow2(w);
@@ -250,6 +351,28 @@
         const luma = 0.2126 * row[idx] + 0.7152 * row[idx + 1] + 0.0722 * row[idx + 2];
         samples[i] = (luma - 128) / 128;
       }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+      rawBins = downsampleBins(fftReal(samples), 128);
+      let maxBin = 1e-6;
+      for (let i = 0; i < rawBins.length; i += 1) maxBin = Math.max(maxBin, rawBins[i]);
+      for (let i = 0; i < rawBins.length; i += 1) rawBins[i] /= maxBin;
+
+      smoothBins(rawBins);
+
+      let e = 0, cNum = 0, cDen = 0, f = 0;
+      for (let i = 0; i < fftBins.length; i += 1) {
+        const b = fftBins[i];
+        e += b;
+        cNum += i * b;
+        cDen += b;
+        f += Math.abs(b - prevBins[i]);
+      }
+      fftEnergy = e / fftBins.length;
+      fftCentroid = cDen > 1e-6 ? (cNum / cDen) / (fftBins.length - 1) : 0;
+      fftFlux = f / fftBins.length;
+      prevBins = fftBins.slice();
+=======
       const bins = downsampleBins(fftReal(samples), 128);
       let maxBin = 1e-6;
       for (let i = 0; i < bins.length; i += 1) maxBin = Math.max(maxBin, bins[i]);
@@ -264,18 +387,30 @@
       fftCentroid = cDen > 1e-6 ? (cNum / cDen) / (bins.length - 1) : 0;
       fftFlux = f / bins.length;
       prevBins = bins; fftBins = bins;
+>>>>>>> main
 
       fftCtx.clearRect(0, 0, fftCanvas.width, fftCanvas.height);
       fftCtx.fillStyle = '#0f172a';
       fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      const barCount = Math.min(96, fftBins.length);
+      const barW = fftCanvas.width / barCount;
+      for (let i = 0; i < barCount; i += 1) {
+        const barH = fftBins[i] * (fftCanvas.height - 10);
+=======
       const barCount = Math.min(96, bins.length);
       const barW = fftCanvas.width / barCount;
       for (let i = 0; i < barCount; i += 1) {
         const barH = bins[i] * (fftCanvas.height - 10);
+>>>>>>> main
         const hue = 210 - (i / barCount) * 140;
         fftCtx.fillStyle = `hsl(${hue}, 90%, 60%)`;
         fftCtx.fillRect(i * barW + 1, fftCanvas.height - barH, barW - 2, barH);
       }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
       fftFrame = requestAnimationFrame(drawFFT);
     }
 
@@ -288,10 +423,22 @@
     }
 
     function makeCPPN(seedIndex) {
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      return {
+        id: seedIndex,
+        l1: mkLayer(8, 8),
+        l2: mkLayer(8, 8),
+        l3: mkLayer(8, 4), // r,g,b,rhythm/audio-control
+      };
+    }
+
+    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+=======
       return { id: seedIndex, l1: mkLayer(8, 7), l2: mkLayer(7, 6), l3: mkLayer(6, 3) };
     }
 
     function cloneNet(net) { return JSON.parse(JSON.stringify(net)); }
+>>>>>>> main
 
     function evalLayer(layer, input) {
       const out = new Float32Array(layer.w.length);
@@ -307,16 +454,27 @@
       const h1 = evalLayer(net.l1, input);
       const h2 = evalLayer(net.l2, h1);
       const o = evalLayer(net.l3, h2);
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      return [o[0], o[1], o[2], o[3]];
+=======
       return [o[0], o[1], o[2]];
+>>>>>>> main
     }
 
     function mutateNet(net, rate) {
       const mutateLayer = (layer) => {
         for (let i = 0; i < layer.w.length; i += 1) {
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+          if (Math.random() < rate) layer.b[i] = clamp(layer.b[i] + randf(-0.35, 0.35), -3, 3);
+          if (Math.random() < rate * 0.35) layer.act[i] = choice(ACT_NAMES);
+          for (let j = 0; j < layer.w[i].length; j += 1) {
+            if (Math.random() < rate) layer.w[i][j] = clamp(layer.w[i][j] + randf(-0.45, 0.45), -4.5, 4.5);
+=======
           if (Math.random() < rate) layer.b[i] += randf(-0.3, 0.3);
           if (Math.random() < rate * 0.35) layer.act[i] = choice(ACT_NAMES);
           for (let j = 0; j < layer.w[i].length; j += 1) {
             if (Math.random() < rate) layer.w[i][j] = clamp(layer.w[i][j] + randf(-0.4, 0.4), -4, 4);
+>>>>>>> main
           }
         }
       };
@@ -324,7 +482,11 @@
     }
 
     function crossoverLayer(layerA, layerB) {
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      const out = deepClone(layerA);
+=======
       const out = cloneNet(layerA);
+>>>>>>> main
       for (let i = 0; i < out.w.length; i += 1) {
         out.b[i] = Math.random() < 0.5 ? layerA.b[i] : layerB.b[i];
         out.act[i] = Math.random() < 0.5 ? layerA.act[i] : layerB.act[i];
@@ -342,6 +504,25 @@
       };
     }
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    function starredTiles() { return cppnTiles.filter((t) => t.starred); }
+
+    function recombineFromStarred() {
+      const stars = starredTiles();
+      if (stars.length < 2) {
+        setStatus(appStatus, 'Star at least 2 tiles to run NEAT-style recombination.');
+        return;
+      }
+
+      const parents = stars.slice().sort((a, b) => b.rating - a.rating);
+      const p1 = parents[0];
+      const p2 = parents[1];
+
+      for (const tile of cppnTiles) {
+        if (tile.id === p1.id || tile.id === p2.id) continue; // keep two elites
+        const donor = parents[Math.floor(Math.random() * parents.length)];
+        const child = crossoverNet(Math.random() < 0.5 ? p1.net : p2.net, donor.net);
+=======
     function sortedByRating() {
       return cppnTiles.slice().sort((a, b) => b.rating - a.rating);
     }
@@ -354,18 +535,172 @@
         const tile = cppnTiles[i];
         if (tile.id === p1.id) continue; // elite
         const child = crossoverNet(p1.net, Math.random() < 0.7 ? p2.net : ranked[Math.floor(Math.random() * ranked.length)].net);
+>>>>>>> main
         mutateNet(child, mutationRate);
         tile.net = child;
         tile.rating = 5;
         tile.meta.textContent = `R: ${tile.rating.toFixed(1)}`;
       }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+      setStatus(appStatus, `NEAT recombination applied from starred parents Tile ${p1.id + 1} and Tile ${p2.id + 1} (+ mutation).`);
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        toneMasterGain = audioContext.createGain();
+        toneMasterGain.gain.value = 0.09;
+
+        sinkAudio = new Audio();
+        sinkAudio.autoplay = true;
+
+        const dest = audioContext.createMediaStreamDestination();
+        toneMasterGain.connect(dest);
+        sinkAudio.srcObject = dest.stream;
+
+        if (audioSelect.value && typeof sinkAudio.setSinkId === 'function') {
+          await sinkAudio.setSinkId(audioSelect.value);
+        } else if (audioSelect.value && typeof sinkAudio.setSinkId !== 'function') {
+          setStatus(appStatus, 'setSinkId unsupported here; using default audio output.');
+        }
+      }
+      if (audioContext.state === 'suspended') await audioContext.resume();
+    }
+
+    function stopOsc(osc) { if (!osc) return; try { osc.stop(); } catch (_) {} osc.disconnect(); }
+
+    async function playVideoTone() {
+      await ensureAudio();
+      stopOsc(videoOscillator);
+      videoOscillator = audioContext.createOscillator();
+      videoOscillator.type = 'sine';
+      videoOscillator.frequency.value = 440;
+      videoOscillator.connect(toneMasterGain);
+      videoOscillator.start();
+    }
+
+    function setupTileAudio(tile) {
+      if (tile.audio) return;
+      const mkVoice = (type) => {
+        const osc = audioContext.createOscillator();
+        osc.type = type;
+        const gain = audioContext.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(toneMasterGain);
+        osc.start();
+        return { osc, gain };
+      };
+      tile.audio = {
+        low: mkVoice('sine'),
+        mid: mkVoice('triangle'),
+        high: mkVoice('sawtooth'),
+      };
+    }
+
+    function stopTileAudio(tile) {
+      if (!tile || !tile.audio) return;
+      const voices = [tile.audio.low, tile.audio.mid, tile.audio.high];
+      voices.forEach((v) => {
+        if (!v) return;
+        stopOsc(v.osc);
+        v.gain.disconnect();
+      });
+      tile.audio = null;
+    }
+
+    async function selectTileForAudio(tile) {
+      await ensureAudio();
+      if (selectedTileId >= 0) {
+        const old = cppnTiles.find((t) => t.id === selectedTileId);
+        stopTileAudio(old);
+      }
+      selectedTileId = tile.id;
+      setupTileAudio(tile);
+      cppnTiles.forEach((t) => t.element.classList.toggle('active', t.id === tile.id));
+    }
+
+    function mapCPPNToSound(tile, t) {
+      if (!tile || !tile.audio) return;
+      const binA = fftBins[(tile.id * 13) % fftBins.length] || 0;
+      const binB = fftBins[(tile.id * 29 + 7) % fftBins.length] || 0;
+      const rhythmicPh = Math.sin(t * 1.3 + tile.phase);
+      const input = [
+        Math.sin(t * 0.11 + tile.phase),
+        Math.cos(t * 0.17 + tile.phase),
+        rhythmicPh,
+        Math.sin(t * 0.51),
+        fftEnergy * 2 - 1,
+        fftCentroid * 2 - 1,
+        clamp(fftFlux * 4 - 1, -1, 1),
+        (binA * 0.6 + binB * 0.4) * 2 - 1,
+      ];
+
+      const [o1, o2, o3, o4] = evalCPPN(tile.net, input);
+
+      const baseHz = 70 + (o1 + 1) * 90 + fftEnergy * 70;      // base
+      const midHz = 220 + (o2 + 1) * 500 + fftCentroid * 250; // mid
+      const highHz = 900 + (o3 + 1) * 1500 + fftFlux * 450;   // high
+
+      const rhythmGate = clamp((o4 + 1) * 0.5, 0, 1);
+      const pulse = 0.35 + 0.65 * Math.max(0, Math.sin(t * (2 + rhythmGate * 6) + tile.phase));
+
+      const now = audioContext.currentTime;
+      tile.audio.low.osc.frequency.setTargetAtTime(baseHz, now, 0.02);
+      tile.audio.mid.osc.frequency.setTargetAtTime(midHz, now, 0.02);
+      tile.audio.high.osc.frequency.setTargetAtTime(highHz, now, 0.02);
+
+      tile.audio.low.gain.gain.setTargetAtTime(0.045 * pulse, now, 0.03);
+      tile.audio.mid.gain.gain.setTargetAtTime(0.028 * (0.55 + rhythmGate * 0.45), now, 0.03);
+      tile.audio.high.gain.gain.setTargetAtTime(0.018 * pulse * (0.3 + fftCentroid * 0.7), now, 0.03);
+=======
       p1.meta.textContent = `R: ${p1.rating.toFixed(1)} (elite)`;
       setStatus(appStatus, `Recombined from parents Tile ${p1.id + 1} and Tile ${p2.id + 1}.`);
+>>>>>>> main
     }
 
     function createCPPNGrid() {
       placeholderGrid.innerHTML = '';
       cppnTiles.length = 0;
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+      for (let i = 0; i < 9; i += 1) {
+        const tile = document.createElement('div');
+        tile.className = 'placeholderTile';
+
+        const starBtn = document.createElement('button');
+        starBtn.className = 'starBtn';
+        starBtn.textContent = '☆';
+        starBtn.title = 'Star-mark tile for NEAT parent selection';
+
+        const label = document.createElement('div');
+        label.className = 'name';
+        label.textContent = `Tile ${i + 1}`;
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = 'R: 5.0';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 180;
+
+        tile.appendChild(starBtn);
+        tile.appendChild(label);
+        tile.appendChild(meta);
+        tile.appendChild(canvas);
+        placeholderGrid.appendChild(tile);
+
+        const low = document.createElement('canvas');
+        low.width = 64;
+        low.height = 36;
+
+        const obj = {
+          id: i,
+          element: tile,
+          starBtn,
+=======
       for (let i = 0; i < 9; i += 1) {
         const tile = document.createElement('div');
         tile.className = 'placeholderTile';
@@ -385,6 +720,7 @@
         const obj = {
           id: i,
           element: tile,
+>>>>>>> main
           canvas,
           ctx: canvas.getContext('2d'),
           low,
@@ -392,6 +728,17 @@
           net: makeCPPN(i),
           phase: randf(0, Math.PI * 2),
           rating: 5,
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+          starred: false,
+          meta,
+          audio: null,
+        };
+
+        tile.addEventListener('click', async (e) => {
+          if (e.target === starBtn) return;
+          await selectTileForAudio(obj);
+          setStatus(appStatus, `Tile ${obj.id + 1} selected. CPPN now generates base + rhythmic + mid/high tones from FFT inputs.`);
+=======
           meta,
         };
 
@@ -402,6 +749,7 @@
           const f = tileBaseFrequency(obj.id);
           playTileTone(f);
           setStatus(appStatus, `Tile ${obj.id + 1} selected. Playing ${Math.round(f)} Hz (tile-specific) on chosen output.`);
+>>>>>>> main
         });
 
         tile.addEventListener('wheel', (e) => {
@@ -410,15 +758,33 @@
           obj.meta.textContent = `R: ${obj.rating.toFixed(1)}`;
         }, { passive: false });
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+        starBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          obj.starred = !obj.starred;
+          obj.starBtn.classList.toggle('on', obj.starred);
+          obj.starBtn.textContent = obj.starred ? '★' : '☆';
+          obj.element.classList.toggle('starred', obj.starred);
+
+          const count = starredTiles().length;
+          if (count >= 2) recombineFromStarred();
+          else setStatus(appStatus, `Starred tiles: ${count}. Star one more tile to trigger recombination.`);
+        });
+
+=======
+>>>>>>> main
         cppnTiles.push(obj);
       }
     }
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+=======
     function tileBaseFrequency(tileId) {
       const bin = fftBins[(tileId * 11) % fftBins.length] || 0;
       return 180 + tileId * 35 + bin * 420 + fftCentroid * 180;
     }
 
+>>>>>>> main
     function renderCPPNPlaceholders(ts) {
       const t = ts * 0.001;
       for (const tile of cppnTiles) {
@@ -429,13 +795,30 @@
 
         const binA = fftBins[(id * 13) % fftBins.length] || 0;
         const binB = fftBins[(id * 29 + 7) % fftBins.length] || 0;
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
         let p = 0;
         for (let y = 0; y < h; y += 1) {
           const ny = (y / (h - 1)) * 2 - 1;
           for (let x = 0; x < w; x += 1) {
             const nx = (x / (w - 1)) * 2 - 1;
             const r = Math.hypot(nx, ny);
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+            const input = [
+              nx,
+              ny,
+              r,
+              Math.sin(t * 0.75 + phase),
+              fftEnergy * 2 - 1,
+              fftCentroid * 2 - 1,
+              clamp(fftFlux * 4 - 1, -1, 1),
+              (binA * 0.6 + binB * 0.4) * 2 - 1,
+            ];
+=======
             const input = [nx, ny, r, Math.sin(t * 0.75 + phase), fftEnergy * 2 - 1, fftCentroid * 2 - 1, clamp(fftFlux * 4 - 1, -1, 1), (binA * 0.6 + binB * 0.4) * 2 - 1];
+>>>>>>> main
             const [or, og, ob] = evalCPPN(net, input);
             d[p++] = Math.floor(clamp((or + 1) * 127.5, 0, 255));
             d[p++] = Math.floor(clamp((og + 1) * 127.5, 0, 255));
@@ -443,19 +826,53 @@
             d[p++] = 255;
           }
         }
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+
+=======
+>>>>>>> main
         lowCtx.putImageData(img, 0, 0);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(low, 0, 0, canvas.width, canvas.height);
       }
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      if (selectedTileId >= 0 && audioContext) {
+        const tile = cppnTiles.find((x) => x.id === selectedTileId);
+        if (tile && tile.audio) mapCPPNToSound(tile, t);
+=======
       if (selectedTileId >= 0 && tileOscillator) {
         const f = tileBaseFrequency(selectedTileId) + Math.sin(t * 2.0) * 8;
         tileOscillator.frequency.setValueAtTime(f, audioContext.currentTime);
+>>>>>>> main
       }
 
       cppnFrame = requestAnimationFrame(renderCPPNPlaceholders);
     }
 
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+    function stopSelectedTileSound() {
+      if (selectedTileId < 0) return;
+      const tile = cppnTiles.find((t) => t.id === selectedTileId);
+      stopTileAudio(tile);
+      selectedTileId = -1;
+      cppnTiles.forEach((t) => t.element.classList.remove('active'));
+    }
+
+    scaleSlider.addEventListener('input', () => {
+      scaleDownFactor = Number(scaleSlider.value);
+      scaleValue.textContent = String(scaleDownFactor);
+    });
+
+    smoothSlider.addEventListener('input', () => {
+      fftSmooth = Number(smoothSlider.value);
+      smoothValue.textContent = fftSmooth.toFixed(2);
+    });
+
+    mutRateSlider.addEventListener('input', () => {
+      mutationRate = Number(mutRateSlider.value);
+      mutRateValue.textContent = mutationRate.toFixed(2);
+    });
+=======
     async function ensureAudio() {
       if (!audioContext) {
         audioContext = new AudioContext();
@@ -506,10 +923,37 @@
 
     scaleSlider.addEventListener('input', () => { scaleDownFactor = Number(scaleSlider.value); scaleValue.textContent = String(scaleDownFactor); });
     mutRateSlider.addEventListener('input', () => { mutationRate = Number(mutRateSlider.value); mutRateValue.textContent = mutationRate.toFixed(2); });
+>>>>>>> main
 
     videoTile.addEventListener('click', async () => {
       videoTile.classList.add('selected');
       await playVideoTone();
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      setStatus(appStatus, 'Playing 440Hz check tone from camera tile.');
+    });
+
+    recombineBtn.addEventListener('click', () => recombineFromStarred());
+
+    randomizeBtn.addEventListener('click', () => {
+      cppnTiles.forEach((tile) => {
+        stopTileAudio(tile);
+        tile.net = makeCPPN(tile.id);
+        tile.rating = 5;
+        tile.starred = false;
+        tile.meta.textContent = 'R: 5.0';
+        tile.starBtn.classList.remove('on');
+        tile.starBtn.textContent = '☆';
+        tile.element.classList.remove('starred');
+      });
+      selectedTileId = -1;
+      setStatus(appStatus, 'Population randomized and star marks cleared.');
+    });
+
+    stopTileSoundBtn.addEventListener('click', () => {
+      stopSelectedTileSound();
+      setStatus(appStatus, 'Selected tile sound stopped.');
+    });
+=======
       setStatus(appStatus, 'Playing 440Hz from camera tile. Select placeholder tiles for tile-specific sounds.');
     });
 
@@ -519,6 +963,7 @@
       setStatus(appStatus, 'Population randomized.');
     });
     stopTileSoundBtn.addEventListener('click', () => { stopTileTone(); setStatus(appStatus, 'Tile-specific sound stopped.'); });
+>>>>>>> main
 
     okButton.addEventListener('click', async () => {
       okButton.disabled = true;
@@ -532,7 +977,11 @@
         renderCPPNPlaceholders(performance.now());
         setupView.style.display = 'none';
         appView.style.display = 'block';
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+        setStatus(appStatus, 'Ready. Click tile for CPPN-driven sound; star 2+ tiles to auto-run NEAT recombination with mutation.');
+=======
         setStatus(appStatus, 'Ready. Click placeholder tiles for per-tile sound, and use NEAT-style recombine for next generation.');
+>>>>>>> main
       } catch (err) {
         setStatus(setupStatus, `Failed to initialize: ${err.message}`);
       } finally {
@@ -545,6 +994,10 @@
       await populateDevices();
       navigator.mediaDevices?.addEventListener?.('devicechange', populateDevices);
       scaleValue.textContent = String(scaleDownFactor);
+<<<<<<< codex/create-self-sustained-html-file-for-camera-and-audio-cqyijo
+      smoothValue.textContent = fftSmooth.toFixed(2);
+=======
+>>>>>>> main
       mutRateValue.textContent = mutationRate.toFixed(2);
     })();
   </script>
