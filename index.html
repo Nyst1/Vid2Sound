@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Tile Audio Selector</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .panel {
+      width: min(960px, 100%);
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.5rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    select, button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #232323;
+      color: #f5f5f5;
+    }
+
+    .field {
+      flex: 1 1 280px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      background: #2f2f2f;
+    }
+
+    #appView {
+      display: none;
+    }
+
+    .grid {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .tile {
+      aspect-ratio: 16 / 9;
+      border: 2px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .tile.selected {
+      border-color: #34d399;
+      box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.3);
+    }
+
+    .tile video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    .tile span {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    .instruction {
+      margin-top: 12px;
+      font-size: 1.1rem;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: #facc15;
+      min-height: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <section class="panel" id="setupView">
+    <h1>Device Setup</h1>
+    <p>Select a camera source and an audio output device, then click OK.</p>
+    <div class="row">
+      <div class="field">
+        <label for="cameraSelect">Camera source</label>
+        <select id="cameraSelect"></select>
+      </div>
+      <div class="field">
+        <label for="audioSelect">Audio output device</label>
+        <select id="audioSelect"></select>
+      </div>
+    </div>
+    <button id="okButton">OK</button>
+    <div class="status" id="setupStatus"></div>
+  </section>
+
+  <section class="panel" id="appView">
+    <h1>Camera Tiles</h1>
+    <div class="grid" id="tileGrid"></div>
+    <p class="instruction">Select a tile using the mouse.</p>
+    <div class="status" id="appStatus"></div>
+  </section>
+
+  <script>
+    const setupView = document.getElementById('setupView');
+    const appView = document.getElementById('appView');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const audioSelect = document.getElementById('audioSelect');
+    const okButton = document.getElementById('okButton');
+    const setupStatus = document.getElementById('setupStatus');
+    const appStatus = document.getElementById('appStatus');
+    const tileGrid = document.getElementById('tileGrid');
+
+    let stream;
+    let audioContext;
+    let oscillator;
+    let gainNode;
+    let sinkAudio;
+    let selectedTile;
+
+    function setStatus(el, message) {
+      el.textContent = message || '';
+    }
+
+    async function requestMediaAccess() {
+      try {
+        const temp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        temp.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        setStatus(setupStatus, `Camera permission is required: ${err.message}`);
+      }
+    }
+
+    function createOption(value, label) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }
+
+    async function populateDevices() {
+      cameraSelect.innerHTML = '';
+      audioSelect.innerHTML = '';
+
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        setStatus(setupStatus, 'enumerateDevices is not supported in this browser.');
+        return;
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      const audioOutputs = devices.filter((d) => d.kind === 'audiooutput');
+
+      if (videoInputs.length === 0) {
+        cameraSelect.appendChild(createOption('', 'No camera devices found'));
+      } else {
+        videoInputs.forEach((device, index) => {
+          const label = device.label || `Camera ${index + 1}`;
+          cameraSelect.appendChild(createOption(device.deviceId, label));
+        });
+      }
+
+      if (audioOutputs.length === 0) {
+        audioSelect.appendChild(createOption('', 'Default output (no explicit device list)'));
+      } else {
+        audioOutputs.forEach((device, index) => {
+          const label = device.label || `Audio Output ${index + 1}`;
+          audioSelect.appendChild(createOption(device.deviceId, label));
+        });
+      }
+
+      setStatus(setupStatus, '');
+    }
+
+    async function startCameraFeed(cameraId) {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+      }
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: cameraId ? { deviceId: { exact: cameraId } } : true,
+        audio: false
+      });
+    }
+
+    function buildTiles() {
+      tileGrid.innerHTML = '';
+      selectedTile = null;
+
+      for (let i = 0; i < 9; i += 1) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.index = i;
+
+        const label = document.createElement('span');
+        label.textContent = `Tile ${i + 1}`;
+
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.srcObject = stream;
+
+        tile.appendChild(video);
+        tile.appendChild(label);
+
+        tile.addEventListener('click', async () => {
+          if (selectedTile) {
+            selectedTile.classList.remove('selected');
+          }
+          selectedTile = tile;
+          selectedTile.classList.add('selected');
+          await playTone();
+          setStatus(appStatus, `Playing 440Hz on selected output from Tile ${i + 1}.`);
+        });
+
+        tileGrid.appendChild(tile);
+      }
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 0.07;
+
+        sinkAudio = new Audio();
+        sinkAudio.autoplay = true;
+
+        const dest = audioContext.createMediaStreamDestination();
+        gainNode.connect(dest);
+        sinkAudio.srcObject = dest.stream;
+
+        if (audioSelect.value && typeof sinkAudio.setSinkId === 'function') {
+          await sinkAudio.setSinkId(audioSelect.value);
+        } else if (audioSelect.value && typeof sinkAudio.setSinkId !== 'function') {
+          setStatus(appStatus, 'setSinkId is not supported here; using default audio output.');
+        }
+      }
+
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+    }
+
+    async function playTone() {
+      await ensureAudio();
+
+      if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+      }
+
+      oscillator = audioContext.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 440;
+      oscillator.connect(gainNode);
+      oscillator.start();
+    }
+
+    okButton.addEventListener('click', async () => {
+      okButton.disabled = true;
+      setStatus(setupStatus, 'Initializing camera and tiles...');
+      try {
+        await startCameraFeed(cameraSelect.value);
+        buildTiles();
+        setupView.style.display = 'none';
+        appView.style.display = 'block';
+        setStatus(appStatus, 'Click any tile to start a 440Hz tone on the selected output device.');
+      } catch (err) {
+        setStatus(setupStatus, `Failed to initialize: ${err.message}`);
+      } finally {
+        okButton.disabled = false;
+      }
+    });
+
+    (async function init() {
+      await requestMediaAccess();
+      await populateDevices();
+      navigator.mediaDevices?.addEventListener?.('devicechange', populateDevices);
+    })();
+  </script>
+</body>
+</html>
