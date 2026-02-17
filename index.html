@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera FFT Tile Demo</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #111;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .panel {
+      width: min(1080px, 100%);
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    h1 { margin: 0 0 12px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .field { flex: 1 1 280px; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; }
+    select, button, input[type='range'] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #232323;
+      color: #f5f5f5;
+      box-sizing: border-box;
+    }
+    button { cursor: pointer; font-weight: bold; margin-top: 8px; }
+    button:hover { background: #2f2f2f; }
+    #appView { display: none; }
+
+    .topTiles {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(260px, 1fr));
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .tile {
+      aspect-ratio: 16 / 9;
+      border: 2px solid #444;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+    }
+    .tile.selectable { cursor: pointer; }
+    .tile.selected {
+      border-color: #34d399;
+      box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.3);
+    }
+    .tileLabel {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      z-index: 1;
+    }
+    video, canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    .placeholderGrid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .placeholderTile {
+      aspect-ratio: 16 / 9;
+      border: 2px dashed #4b4b4b;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #9ca3af;
+      background: #151515;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .instruction { margin-top: 12px; font-size: 1.1rem; }
+    .status { margin-top: 10px; color: #facc15; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <section class="panel" id="setupView">
+    <h1>Device Setup</h1>
+    <p>Select a camera source and an audio output device, then click OK.</p>
+    <div class="row">
+      <div class="field">
+        <label for="cameraSelect">Camera source</label>
+        <select id="cameraSelect"></select>
+      </div>
+      <div class="field">
+        <label for="audioSelect">Audio output device</label>
+        <select id="audioSelect"></select>
+      </div>
+    </div>
+    <button id="okButton">OK</button>
+    <div class="status" id="setupStatus"></div>
+  </section>
+
+  <section class="panel" id="appView">
+    <h1>Camera + FFT View</h1>
+    <div class="row">
+      <div class="field">
+        <label for="scaleSlider">FFT scale-down factor: <span id="scaleValue">4</span>x</label>
+        <input id="scaleSlider" type="range" min="1" max="8" value="4" step="1" />
+      </div>
+    </div>
+
+    <div class="topTiles">
+      <div class="tile selectable" id="videoTile">
+        <span class="tileLabel">Live Camera (click to select)</span>
+        <video id="liveVideo" autoplay muted playsinline></video>
+      </div>
+      <div class="tile">
+        <span class="tileLabel">Realtime FFT</span>
+        <canvas id="fftCanvas" width="640" height="360"></canvas>
+      </div>
+    </div>
+
+    <p class="instruction">Select the live video tile using the mouse.</p>
+
+    <div class="placeholderGrid" id="placeholderGrid"></div>
+    <div class="status" id="appStatus"></div>
+  </section>
+
+  <script>
+    const setupView = document.getElementById('setupView');
+    const appView = document.getElementById('appView');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const audioSelect = document.getElementById('audioSelect');
+    const okButton = document.getElementById('okButton');
+    const setupStatus = document.getElementById('setupStatus');
+    const appStatus = document.getElementById('appStatus');
+    const videoTile = document.getElementById('videoTile');
+    const liveVideo = document.getElementById('liveVideo');
+    const fftCanvas = document.getElementById('fftCanvas');
+    const placeholderGrid = document.getElementById('placeholderGrid');
+    const scaleSlider = document.getElementById('scaleSlider');
+    const scaleValue = document.getElementById('scaleValue');
+
+    let stream;
+    let audioContext;
+    let oscillator;
+    let gainNode;
+    let sinkAudio;
+    let animFrame;
+    let scaleDownFactor = Number(scaleSlider.value);
+
+    const workCanvas = document.createElement('canvas');
+    const workCtx = workCanvas.getContext('2d', { willReadFrequently: true });
+    const fftCtx = fftCanvas.getContext('2d');
+
+    function setStatus(el, message) { el.textContent = message || ''; }
+
+    async function requestMediaAccess() {
+      try {
+        const temp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        temp.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        setStatus(setupStatus, `Camera permission is required: ${err.message}`);
+      }
+    }
+
+    function createOption(value, label) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }
+
+    async function populateDevices() {
+      cameraSelect.innerHTML = '';
+      audioSelect.innerHTML = '';
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        setStatus(setupStatus, 'enumerateDevices is not supported in this browser.');
+        return;
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      const audioOutputs = devices.filter((d) => d.kind === 'audiooutput');
+
+      if (videoInputs.length === 0) {
+        cameraSelect.appendChild(createOption('', 'No camera devices found'));
+      } else {
+        videoInputs.forEach((device, index) => cameraSelect.appendChild(createOption(device.deviceId, device.label || `Camera ${index + 1}`)));
+      }
+
+      if (audioOutputs.length === 0) {
+        audioSelect.appendChild(createOption('', 'Default output (no explicit device list)'));
+      } else {
+        audioOutputs.forEach((device, index) => audioSelect.appendChild(createOption(device.deviceId, device.label || `Audio Output ${index + 1}`)));
+      }
+      setStatus(setupStatus, '');
+    }
+
+    async function startCameraFeed(cameraId) {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: cameraId ? { deviceId: { exact: cameraId } } : true,
+        audio: false
+      });
+      liveVideo.srcObject = stream;
+      await liveVideo.play();
+    }
+
+    function createPlaceholders() {
+      placeholderGrid.innerHTML = '';
+      for (let i = 0; i < 9; i += 1) {
+        const tile = document.createElement('div');
+        tile.className = 'placeholderTile';
+        tile.textContent = `Placeholder tile ${i + 1}`;
+        placeholderGrid.appendChild(tile);
+      }
+    }
+
+    function nextPow2(n) {
+      return 1 << Math.floor(Math.log2(Math.max(2, n)));
+    }
+
+    function fftReal(samples) {
+      const n = samples.length;
+      const re = new Float32Array(n);
+      const im = new Float32Array(n);
+      re.set(samples);
+
+      let j = 0;
+      for (let i = 1; i < n; i += 1) {
+        let bit = n >> 1;
+        while (j & bit) { j ^= bit; bit >>= 1; }
+        j ^= bit;
+        if (i < j) {
+          [re[i], re[j]] = [re[j], re[i]];
+          [im[i], im[j]] = [im[j], im[i]];
+        }
+      }
+
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = (-2 * Math.PI) / len;
+        const wlenRe = Math.cos(ang);
+        const wlenIm = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let wRe = 1;
+          let wIm = 0;
+          for (let k = 0; k < len / 2; k += 1) {
+            const uRe = re[i + k];
+            const uIm = im[i + k];
+            const vRe = re[i + k + len / 2] * wRe - im[i + k + len / 2] * wIm;
+            const vIm = re[i + k + len / 2] * wIm + im[i + k + len / 2] * wRe;
+            re[i + k] = uRe + vRe;
+            im[i + k] = uIm + vIm;
+            re[i + k + len / 2] = uRe - vRe;
+            im[i + k + len / 2] = uIm - vIm;
+            const nextWRe = wRe * wlenRe - wIm * wlenIm;
+            wIm = wRe * wlenIm + wIm * wlenRe;
+            wRe = nextWRe;
+          }
+        }
+      }
+
+      const mags = new Float32Array(n / 2);
+      for (let i = 0; i < n / 2; i += 1) mags[i] = Math.hypot(re[i], im[i]);
+      return mags;
+    }
+
+    function drawFFT() {
+      if (!liveVideo.videoWidth || !liveVideo.videoHeight) {
+        animFrame = requestAnimationFrame(drawFFT);
+        return;
+      }
+
+      const w = Math.max(32, Math.floor(liveVideo.videoWidth / scaleDownFactor));
+      const h = Math.max(18, Math.floor(liveVideo.videoHeight / scaleDownFactor));
+      workCanvas.width = w;
+      workCanvas.height = h;
+      workCtx.drawImage(liveVideo, 0, 0, w, h);
+
+      const y = Math.floor(h / 2);
+      const row = workCtx.getImageData(0, y, w, 1).data;
+      const n = nextPow2(w);
+      const samples = new Float32Array(n);
+      for (let i = 0; i < n; i += 1) {
+        const x = Math.floor((i / n) * w);
+        const idx = x * 4;
+        const luma = 0.2126 * row[idx] + 0.7152 * row[idx + 1] + 0.0722 * row[idx + 2];
+        samples[i] = (luma - 128) / 128;
+      }
+
+      const mags = fftReal(samples);
+      fftCtx.clearRect(0, 0, fftCanvas.width, fftCanvas.height);
+      fftCtx.fillStyle = '#0f172a';
+      fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+      const barCount = Math.min(96, mags.length);
+      const barW = fftCanvas.width / barCount;
+      const maxMag = Math.max(...mags) || 1;
+
+      for (let i = 0; i < barCount; i += 1) {
+        const mag = mags[i] / maxMag;
+        const barH = mag * (fftCanvas.height - 10);
+        const hue = 210 - (i / barCount) * 140;
+        fftCtx.fillStyle = `hsl(${hue}, 90%, 60%)`;
+        fftCtx.fillRect(i * barW + 1, fftCanvas.height - barH, barW - 2, barH);
+      }
+
+      animFrame = requestAnimationFrame(drawFFT);
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 0.07;
+
+        sinkAudio = new Audio();
+        sinkAudio.autoplay = true;
+
+        const dest = audioContext.createMediaStreamDestination();
+        gainNode.connect(dest);
+        sinkAudio.srcObject = dest.stream;
+
+        if (audioSelect.value && typeof sinkAudio.setSinkId === 'function') {
+          await sinkAudio.setSinkId(audioSelect.value);
+        } else if (audioSelect.value && typeof sinkAudio.setSinkId !== 'function') {
+          setStatus(appStatus, 'setSinkId is not supported here; using default audio output.');
+        }
+      }
+      if (audioContext.state === 'suspended') await audioContext.resume();
+    }
+
+    async function playTone() {
+      await ensureAudio();
+      if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+      }
+      oscillator = audioContext.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 440;
+      oscillator.connect(gainNode);
+      oscillator.start();
+    }
+
+    scaleSlider.addEventListener('input', () => {
+      scaleDownFactor = Number(scaleSlider.value);
+      scaleValue.textContent = String(scaleDownFactor);
+    });
+
+    videoTile.addEventListener('click', async () => {
+      videoTile.classList.add('selected');
+      await playTone();
+      setStatus(appStatus, `Playing 440Hz on selected output. FFT scale-down factor: ${scaleDownFactor}x.`);
+    });
+
+    okButton.addEventListener('click', async () => {
+      okButton.disabled = true;
+      setStatus(setupStatus, 'Initializing camera and FFT...');
+      try {
+        await startCameraFeed(cameraSelect.value);
+        createPlaceholders();
+        if (animFrame) cancelAnimationFrame(animFrame);
+        drawFFT();
+        setupView.style.display = 'none';
+        appView.style.display = 'block';
+        setStatus(appStatus, 'Click the live camera tile to start 440Hz output and keep FFT rendering realtime.');
+      } catch (err) {
+        setStatus(setupStatus, `Failed to initialize: ${err.message}`);
+      } finally {
+        okButton.disabled = false;
+      }
+    });
+
+    (async function init() {
+      await requestMediaAccess();
+      await populateDevices();
+      navigator.mediaDevices?.addEventListener?.('devicechange', populateDevices);
+      scaleValue.textContent = String(scaleDownFactor);
+    })();
+  </script>
+</body>
+</html>
