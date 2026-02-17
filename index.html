@@ -3,55 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera FFT + CPPN Placeholder Grid</title>
+  <title>Camera FFT + CPPN Tiles (with NEAT-style recombination)</title>
   <style>
     :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
-    body {
-      margin: 0; background: #111; color: #f5f5f5; min-height: 100vh;
-      display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box;
-    }
-    .panel {
-      width: min(1100px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px;
-      padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4);
-    }
+    body { margin: 0; background: #111; color: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
+    .panel { width: min(1120px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
     h1 { margin: 0 0 12px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-    .field { flex: 1 1 280px; }
+    .field { flex: 1 1 240px; }
     label { display: block; margin-bottom: 6px; font-weight: bold; }
-    select, button, input[type='range'] {
-      width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444;
-      background: #232323; color: #f5f5f5; box-sizing: border-box;
-    }
-    button { cursor: pointer; font-weight: bold; margin-top: 8px; }
+    select, button, input[type='range'] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #232323; color: #f5f5f5; box-sizing: border-box; }
+    button { cursor: pointer; font-weight: bold; }
     button:hover { background: #2f2f2f; }
+    .controls button { flex: 1 1 180px; }
     #appView { display: none; }
 
-    .topTiles {
-      display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 10px; margin-top: 6px;
-    }
-    .tile {
-      aspect-ratio: 16 / 9; border: 2px solid #444; border-radius: 8px; overflow: hidden;
-      position: relative; background: #000;
-    }
+    .topTiles { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 10px; margin-top: 6px; }
+    .tile { aspect-ratio: 16 / 9; border: 2px solid #444; border-radius: 8px; overflow: hidden; position: relative; background: #000; }
     .tile.selectable { cursor: pointer; }
     .tile.selected { border-color: #34d399; box-shadow: 0 0 0 2px rgba(52,211,153,.3); }
-    .tileLabel {
-      position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.65); padding: 2px 6px;
-      border-radius: 4px; font-size: .75rem; z-index: 1;
-    }
+    .tileLabel { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .75rem; z-index: 1; }
     video, canvas { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
 
     .placeholderGrid { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .placeholderTile {
-      aspect-ratio: 16 / 9; border: 2px solid #4b4b4b; border-radius: 8px; overflow: hidden; position: relative;
-      background: #111;
-    }
-    .placeholderTile .name {
-      position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.65); padding: 2px 6px;
-      border-radius: 4px; font-size: .72rem; z-index: 2; color: #d1d5db;
-    }
+    .placeholderTile { aspect-ratio: 16 / 9; border: 2px solid #4b4b4b; border-radius: 8px; overflow: hidden; position: relative; background: #111; cursor: pointer; }
+    .placeholderTile.active { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,.35); }
+    .placeholderTile .name { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #d1d5db; }
+    .placeholderTile .meta { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #a7f3d0; }
 
-    .instruction { margin-top: 12px; font-size: 1.1rem; }
+    .instruction { margin-top: 12px; font-size: 1.05rem; }
     .status { margin-top: 10px; color: #facc15; min-height: 1.2em; }
   </style>
 </head>
@@ -75,16 +55,27 @@
 
   <section class="panel" id="appView">
     <h1>Camera + FFT + CPPN Placeholders</h1>
+
     <div class="row">
       <div class="field">
         <label for="scaleSlider">FFT scale-down factor: <span id="scaleValue">4</span>x</label>
         <input id="scaleSlider" type="range" min="1" max="8" value="4" step="1" />
       </div>
+      <div class="field">
+        <label for="mutRateSlider">Mutation rate: <span id="mutRateValue">0.20</span></label>
+        <input id="mutRateSlider" type="range" min="0" max="0.6" value="0.2" step="0.01" />
+      </div>
+    </div>
+
+    <div class="row controls">
+      <button id="recombineBtn">NEAT-style Recombine Top Parents</button>
+      <button id="randomizeBtn">Randomize Population</button>
+      <button id="stopTileSoundBtn">Stop Tile Sound</button>
     </div>
 
     <div class="topTiles">
       <div class="tile selectable" id="videoTile">
-        <span class="tileLabel">Live Camera (click to select)</span>
+        <span class="tileLabel">Live Camera (click to select: 440Hz)</span>
         <video id="liveVideo" autoplay muted playsinline></video>
       </div>
       <div class="tile">
@@ -93,7 +84,7 @@
       </div>
     </div>
 
-    <p class="instruction">Select the live video tile using the mouse.</p>
+    <p class="instruction">Click a placeholder tile to hear its own sound. Use the recombine button to breed next generation from top-rated tiles.</p>
     <div class="placeholderGrid" id="placeholderGrid"></div>
     <div class="status" id="appStatus"></div>
   </section>
@@ -112,13 +103,21 @@
     const placeholderGrid = document.getElementById('placeholderGrid');
     const scaleSlider = document.getElementById('scaleSlider');
     const scaleValue = document.getElementById('scaleValue');
+    const mutRateSlider = document.getElementById('mutRateSlider');
+    const mutRateValue = document.getElementById('mutRateValue');
+    const recombineBtn = document.getElementById('recombineBtn');
+    const randomizeBtn = document.getElementById('randomizeBtn');
+    const stopTileSoundBtn = document.getElementById('stopTileSoundBtn');
 
-    let stream, audioContext, oscillator, gainNode, sinkAudio;
+    let stream, audioContext, sinkAudio;
+    let videoOscillator, tileOscillator, gainNode;
     let fftFrame = 0, cppnFrame = 0;
     let scaleDownFactor = Number(scaleSlider.value);
+    let mutationRate = Number(mutRateSlider.value);
     let fftBins = new Float32Array(128);
     let fftEnergy = 0, fftCentroid = 0, fftFlux = 0;
     let prevBins = new Float32Array(128);
+    let selectedTileId = -1;
 
     const workCanvas = document.createElement('canvas');
     const workCtx = workCanvas.getContext('2d', { willReadFrequently: true });
@@ -190,18 +189,13 @@
       const re = new Float32Array(n);
       const im = new Float32Array(n);
       re.set(samples);
-
       let j = 0;
       for (let i = 1; i < n; i += 1) {
         let bit = n >> 1;
         while (j & bit) { j ^= bit; bit >>= 1; }
         j ^= bit;
-        if (i < j) {
-          [re[i], re[j]] = [re[j], re[i]];
-          [im[i], im[j]] = [im[j], im[i]];
-        }
+        if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
       }
-
       for (let len = 2; len <= n; len <<= 1) {
         const ang = (-2 * Math.PI) / len;
         const wlenRe = Math.cos(ang);
@@ -222,7 +216,6 @@
           }
         }
       }
-
       const mags = new Float32Array(n / 2);
       for (let i = 0; i < n / 2; i += 1) mags[i] = Math.hypot(re[i], im[i]);
       return mags;
@@ -242,16 +235,11 @@
     }
 
     function drawFFT() {
-      if (!liveVideo.videoWidth || !liveVideo.videoHeight) {
-        fftFrame = requestAnimationFrame(drawFFT);
-        return;
-      }
-
+      if (!liveVideo.videoWidth || !liveVideo.videoHeight) { fftFrame = requestAnimationFrame(drawFFT); return; }
       const w = Math.max(32, Math.floor(liveVideo.videoWidth / scaleDownFactor));
       const h = Math.max(18, Math.floor(liveVideo.videoHeight / scaleDownFactor));
       workCanvas.width = w; workCanvas.height = h;
       workCtx.drawImage(liveVideo, 0, 0, w, h);
-
       const y = Math.floor(h / 2);
       const row = workCtx.getImageData(0, y, w, 1).data;
       const n = nextPow2(w);
@@ -262,9 +250,7 @@
         const luma = 0.2126 * row[idx] + 0.7152 * row[idx + 1] + 0.0722 * row[idx + 2];
         samples[i] = (luma - 128) / 128;
       }
-
-      const mags = fftReal(samples);
-      const bins = downsampleBins(mags, 128);
+      const bins = downsampleBins(fftReal(samples), 128);
       let maxBin = 1e-6;
       for (let i = 0; i < bins.length; i += 1) maxBin = Math.max(maxBin, bins[i]);
       for (let i = 0; i < bins.length; i += 1) bins[i] /= maxBin;
@@ -272,16 +258,12 @@
       let e = 0, cNum = 0, cDen = 0, f = 0;
       for (let i = 0; i < bins.length; i += 1) {
         const b = bins[i];
-        e += b;
-        cNum += i * b;
-        cDen += b;
-        f += Math.abs(b - prevBins[i]);
+        e += b; cNum += i * b; cDen += b; f += Math.abs(b - prevBins[i]);
       }
       fftEnergy = e / bins.length;
       fftCentroid = cDen > 1e-6 ? (cNum / cDen) / (bins.length - 1) : 0;
       fftFlux = f / bins.length;
-      prevBins = bins;
-      fftBins = bins;
+      prevBins = bins; fftBins = bins;
 
       fftCtx.clearRect(0, 0, fftCanvas.width, fftCanvas.height);
       fftCtx.fillStyle = '#0f172a';
@@ -289,36 +271,27 @@
       const barCount = Math.min(96, bins.length);
       const barW = fftCanvas.width / barCount;
       for (let i = 0; i < barCount; i += 1) {
-        const mag = bins[i];
-        const barH = mag * (fftCanvas.height - 10);
+        const barH = bins[i] * (fftCanvas.height - 10);
         const hue = 210 - (i / barCount) * 140;
         fftCtx.fillStyle = `hsl(${hue}, 90%, 60%)`;
         fftCtx.fillRect(i * barW + 1, fftCanvas.height - barH, barW - 2, barH);
       }
-
       fftFrame = requestAnimationFrame(drawFFT);
     }
 
-    function makeCPPN(seedIndex) {
-      const inCount = 8;
-      const h1 = 7;
-      const h2 = 6;
-      const outCount = 3;
-
-      const mkLayer = (from, to) => {
-        const w = Array.from({ length: to }, () => Array.from({ length: from }, () => randf(-2, 2)));
-        const b = Array.from({ length: to }, () => randf(-1, 1));
-        const act = Array.from({ length: to }, () => choice(ACT_NAMES));
-        return { w, b, act };
-      };
-
+    function mkLayer(from, to) {
       return {
-        id: seedIndex,
-        l1: mkLayer(inCount, h1),
-        l2: mkLayer(h1, h2),
-        l3: mkLayer(h2, outCount),
+        w: Array.from({ length: to }, () => Array.from({ length: from }, () => randf(-2, 2))),
+        b: Array.from({ length: to }, () => randf(-1, 1)),
+        act: Array.from({ length: to }, () => choice(ACT_NAMES)),
       };
     }
+
+    function makeCPPN(seedIndex) {
+      return { id: seedIndex, l1: mkLayer(8, 7), l2: mkLayer(7, 6), l3: mkLayer(6, 3) };
+    }
+
+    function cloneNet(net) { return JSON.parse(JSON.stringify(net)); }
 
     function evalLayer(layer, input) {
       const out = new Float32Array(layer.w.length);
@@ -337,40 +310,113 @@
       return [o[0], o[1], o[2]];
     }
 
+    function mutateNet(net, rate) {
+      const mutateLayer = (layer) => {
+        for (let i = 0; i < layer.w.length; i += 1) {
+          if (Math.random() < rate) layer.b[i] += randf(-0.3, 0.3);
+          if (Math.random() < rate * 0.35) layer.act[i] = choice(ACT_NAMES);
+          for (let j = 0; j < layer.w[i].length; j += 1) {
+            if (Math.random() < rate) layer.w[i][j] = clamp(layer.w[i][j] + randf(-0.4, 0.4), -4, 4);
+          }
+        }
+      };
+      mutateLayer(net.l1); mutateLayer(net.l2); mutateLayer(net.l3);
+    }
+
+    function crossoverLayer(layerA, layerB) {
+      const out = cloneNet(layerA);
+      for (let i = 0; i < out.w.length; i += 1) {
+        out.b[i] = Math.random() < 0.5 ? layerA.b[i] : layerB.b[i];
+        out.act[i] = Math.random() < 0.5 ? layerA.act[i] : layerB.act[i];
+        for (let j = 0; j < out.w[i].length; j += 1) out.w[i][j] = Math.random() < 0.5 ? layerA.w[i][j] : layerB.w[i][j];
+      }
+      return out;
+    }
+
+    function crossoverNet(parentA, parentB) {
+      return {
+        id: parentA.id,
+        l1: crossoverLayer(parentA.l1, parentB.l1),
+        l2: crossoverLayer(parentA.l2, parentB.l2),
+        l3: crossoverLayer(parentA.l3, parentB.l3),
+      };
+    }
+
+    function sortedByRating() {
+      return cppnTiles.slice().sort((a, b) => b.rating - a.rating);
+    }
+
+    function recombinePopulation() {
+      if (cppnTiles.length < 2) return;
+      const ranked = sortedByRating();
+      const p1 = ranked[0], p2 = ranked[1];
+      for (let i = 0; i < cppnTiles.length; i += 1) {
+        const tile = cppnTiles[i];
+        if (tile.id === p1.id) continue; // elite
+        const child = crossoverNet(p1.net, Math.random() < 0.7 ? p2.net : ranked[Math.floor(Math.random() * ranked.length)].net);
+        mutateNet(child, mutationRate);
+        tile.net = child;
+        tile.rating = 5;
+        tile.meta.textContent = `R: ${tile.rating.toFixed(1)}`;
+      }
+      p1.meta.textContent = `R: ${p1.rating.toFixed(1)} (elite)`;
+      setStatus(appStatus, `Recombined from parents Tile ${p1.id + 1} and Tile ${p2.id + 1}.`);
+    }
+
     function createCPPNGrid() {
       placeholderGrid.innerHTML = '';
       cppnTiles.length = 0;
-
       for (let i = 0; i < 9; i += 1) {
         const tile = document.createElement('div');
         tile.className = 'placeholderTile';
-
         const label = document.createElement('div');
         label.className = 'name';
-        label.textContent = `CPPN ${i + 1}`;
-
+        label.textContent = `Tile ${i + 1}`;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = 'R: 5.0';
         const canvas = document.createElement('canvas');
-        canvas.width = 320;
-        canvas.height = 180;
-
-        tile.appendChild(label);
-        tile.appendChild(canvas);
+        canvas.width = 320; canvas.height = 180;
+        tile.appendChild(label); tile.appendChild(meta); tile.appendChild(canvas);
         placeholderGrid.appendChild(tile);
 
         const low = document.createElement('canvas');
-        low.width = 64;
-        low.height = 36;
-
-        cppnTiles.push({
+        low.width = 64; low.height = 36;
+        const obj = {
           id: i,
+          element: tile,
           canvas,
           ctx: canvas.getContext('2d'),
           low,
           lowCtx: low.getContext('2d'),
           net: makeCPPN(i),
           phase: randf(0, Math.PI * 2),
+          rating: 5,
+          meta,
+        };
+
+        tile.addEventListener('click', async () => {
+          await ensureAudio();
+          selectedTileId = obj.id;
+          cppnTiles.forEach((t) => t.element.classList.toggle('active', t.id === obj.id));
+          const f = tileBaseFrequency(obj.id);
+          playTileTone(f);
+          setStatus(appStatus, `Tile ${obj.id + 1} selected. Playing ${Math.round(f)} Hz (tile-specific) on chosen output.`);
         });
+
+        tile.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          obj.rating = clamp(obj.rating + (e.deltaY < 0 ? 0.2 : -0.2), 0, 10);
+          obj.meta.textContent = `R: ${obj.rating.toFixed(1)}`;
+        }, { passive: false });
+
+        cppnTiles.push(obj);
       }
+    }
+
+    function tileBaseFrequency(tileId) {
+      const bin = fftBins[(tileId * 11) % fftBins.length] || 0;
+      return 180 + tileId * 35 + bin * 420 + fftCentroid * 180;
     }
 
     function renderCPPNPlaceholders(ts) {
@@ -383,25 +429,13 @@
 
         const binA = fftBins[(id * 13) % fftBins.length] || 0;
         const binB = fftBins[(id * 29 + 7) % fftBins.length] || 0;
-
         let p = 0;
         for (let y = 0; y < h; y += 1) {
           const ny = (y / (h - 1)) * 2 - 1;
           for (let x = 0; x < w; x += 1) {
             const nx = (x / (w - 1)) * 2 - 1;
             const r = Math.hypot(nx, ny);
-
-            const input = [
-              nx,
-              ny,
-              r,
-              Math.sin(t * 0.75 + phase),
-              fftEnergy * 2 - 1,
-              fftCentroid * 2 - 1,
-              clamp(fftFlux * 4 - 1, -1, 1),
-              (binA * 0.6 + binB * 0.4) * 2 - 1,
-            ];
-
+            const input = [nx, ny, r, Math.sin(t * 0.75 + phase), fftEnergy * 2 - 1, fftCentroid * 2 - 1, clamp(fftFlux * 4 - 1, -1, 1), (binA * 0.6 + binB * 0.4) * 2 - 1];
             const [or, og, ob] = evalCPPN(net, input);
             d[p++] = Math.floor(clamp((or + 1) * 127.5, 0, 255));
             d[p++] = Math.floor(clamp((og + 1) * 127.5, 0, 255));
@@ -409,10 +443,14 @@
             d[p++] = 255;
           }
         }
-
         lowCtx.putImageData(img, 0, 0);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(low, 0, 0, canvas.width, canvas.height);
+      }
+
+      if (selectedTileId >= 0 && tileOscillator) {
+        const f = tileBaseFrequency(selectedTileId) + Math.sin(t * 2.0) * 8;
+        tileOscillator.frequency.setValueAtTime(f, audioContext.currentTime);
       }
 
       cppnFrame = requestAnimationFrame(renderCPPNPlaceholders);
@@ -422,15 +460,12 @@
       if (!audioContext) {
         audioContext = new AudioContext();
         gainNode = audioContext.createGain();
-        gainNode.gain.value = 0.07;
-
+        gainNode.gain.value = 0.08;
         sinkAudio = new Audio();
         sinkAudio.autoplay = true;
-
         const dest = audioContext.createMediaStreamDestination();
         gainNode.connect(dest);
         sinkAudio.srcObject = dest.stream;
-
         if (audioSelect.value && typeof sinkAudio.setSinkId === 'function') {
           await sinkAudio.setSinkId(audioSelect.value);
         } else if (audioSelect.value && typeof sinkAudio.setSinkId !== 'function') {
@@ -440,29 +475,50 @@
       if (audioContext.state === 'suspended') await audioContext.resume();
     }
 
-    async function playTone() {
+    function stopOsc(osc) { if (!osc) return; try { osc.stop(); } catch (_) {} osc.disconnect(); }
+
+    async function playVideoTone() {
       await ensureAudio();
-      if (oscillator) {
-        oscillator.stop();
-        oscillator.disconnect();
-      }
-      oscillator = audioContext.createOscillator();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 440;
-      oscillator.connect(gainNode);
-      oscillator.start();
+      stopOsc(videoOscillator);
+      videoOscillator = audioContext.createOscillator();
+      videoOscillator.type = 'sine';
+      videoOscillator.frequency.value = 440;
+      videoOscillator.connect(gainNode);
+      videoOscillator.start();
     }
 
-    scaleSlider.addEventListener('input', () => {
-      scaleDownFactor = Number(scaleSlider.value);
-      scaleValue.textContent = String(scaleDownFactor);
-    });
+    async function playTileTone(freq) {
+      await ensureAudio();
+      stopOsc(tileOscillator);
+      tileOscillator = audioContext.createOscillator();
+      tileOscillator.type = 'triangle';
+      tileOscillator.frequency.value = freq;
+      tileOscillator.connect(gainNode);
+      tileOscillator.start();
+    }
+
+    function stopTileTone() {
+      stopOsc(tileOscillator);
+      tileOscillator = null;
+      selectedTileId = -1;
+      cppnTiles.forEach((t) => t.element.classList.remove('active'));
+    }
+
+    scaleSlider.addEventListener('input', () => { scaleDownFactor = Number(scaleSlider.value); scaleValue.textContent = String(scaleDownFactor); });
+    mutRateSlider.addEventListener('input', () => { mutationRate = Number(mutRateSlider.value); mutRateValue.textContent = mutationRate.toFixed(2); });
 
     videoTile.addEventListener('click', async () => {
       videoTile.classList.add('selected');
-      await playTone();
-      setStatus(appStatus, `Playing 440Hz on selected output. FFT scale-down factor: ${scaleDownFactor}x.`);
+      await playVideoTone();
+      setStatus(appStatus, 'Playing 440Hz from camera tile. Select placeholder tiles for tile-specific sounds.');
     });
+
+    recombineBtn.addEventListener('click', () => recombinePopulation());
+    randomizeBtn.addEventListener('click', () => {
+      cppnTiles.forEach((tile) => { tile.net = makeCPPN(tile.id); tile.rating = 5; tile.meta.textContent = 'R: 5.0'; });
+      setStatus(appStatus, 'Population randomized.');
+    });
+    stopTileSoundBtn.addEventListener('click', () => { stopTileTone(); setStatus(appStatus, 'Tile-specific sound stopped.'); });
 
     okButton.addEventListener('click', async () => {
       okButton.disabled = true;
@@ -476,7 +532,7 @@
         renderCPPNPlaceholders(performance.now());
         setupView.style.display = 'none';
         appView.style.display = 'block';
-        setStatus(appStatus, 'Live tile selection starts 440Hz. FFT features now drive one CPPN per placeholder tile.');
+        setStatus(appStatus, 'Ready. Click placeholder tiles for per-tile sound, and use NEAT-style recombine for next generation.');
       } catch (err) {
         setStatus(setupStatus, `Failed to initialize: ${err.message}`);
       } finally {
@@ -489,6 +545,7 @@
       await populateDevices();
       navigator.mediaDevices?.addEventListener?.('devicechange', populateDevices);
       scaleValue.textContent = String(scaleDownFactor);
+      mutRateValue.textContent = mutationRate.toFixed(2);
     })();
   </script>
 </body>
