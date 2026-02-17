@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera FFT + CPPN Placeholder Grid</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
+    body {
+      margin: 0; background: #111; color: #f5f5f5; min-height: 100vh;
+      display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box;
+    }
+    .panel {
+      width: min(1100px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px;
+      padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4);
+    }
+    h1 { margin: 0 0 12px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .field { flex: 1 1 280px; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; }
+    select, button, input[type='range'] {
+      width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444;
+      background: #232323; color: #f5f5f5; box-sizing: border-box;
+    }
+    button { cursor: pointer; font-weight: bold; margin-top: 8px; }
+    button:hover { background: #2f2f2f; }
+    #appView { display: none; }
+
+    .topTiles {
+      display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 10px; margin-top: 6px;
+    }
+    .tile {
+      aspect-ratio: 16 / 9; border: 2px solid #444; border-radius: 8px; overflow: hidden;
+      position: relative; background: #000;
+    }
+    .tile.selectable { cursor: pointer; }
+    .tile.selected { border-color: #34d399; box-shadow: 0 0 0 2px rgba(52,211,153,.3); }
+    .tileLabel {
+      position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.65); padding: 2px 6px;
+      border-radius: 4px; font-size: .75rem; z-index: 1;
+    }
+    video, canvas { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+
+    .placeholderGrid { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .placeholderTile {
+      aspect-ratio: 16 / 9; border: 2px solid #4b4b4b; border-radius: 8px; overflow: hidden; position: relative;
+      background: #111;
+    }
+    .placeholderTile .name {
+      position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.65); padding: 2px 6px;
+      border-radius: 4px; font-size: .72rem; z-index: 2; color: #d1d5db;
+    }
+
+    .instruction { margin-top: 12px; font-size: 1.1rem; }
+    .status { margin-top: 10px; color: #facc15; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <section class="panel" id="setupView">
+    <h1>Device Setup</h1>
+    <p>Select a camera source and an audio output device, then click OK.</p>
+    <div class="row">
+      <div class="field">
+        <label for="cameraSelect">Camera source</label>
+        <select id="cameraSelect"></select>
+      </div>
+      <div class="field">
+        <label for="audioSelect">Audio output device</label>
+        <select id="audioSelect"></select>
+      </div>
+    </div>
+    <button id="okButton">OK</button>
+    <div class="status" id="setupStatus"></div>
+  </section>
+
+  <section class="panel" id="appView">
+    <h1>Camera + FFT + CPPN Placeholders</h1>
+    <div class="row">
+      <div class="field">
+        <label for="scaleSlider">FFT scale-down factor: <span id="scaleValue">4</span>x</label>
+        <input id="scaleSlider" type="range" min="1" max="8" value="4" step="1" />
+      </div>
+    </div>
+
+    <div class="topTiles">
+      <div class="tile selectable" id="videoTile">
+        <span class="tileLabel">Live Camera (click to select)</span>
+        <video id="liveVideo" autoplay muted playsinline></video>
+      </div>
+      <div class="tile">
+        <span class="tileLabel">Realtime FFT</span>
+        <canvas id="fftCanvas" width="640" height="360"></canvas>
+      </div>
+    </div>
+
+    <p class="instruction">Select the live video tile using the mouse.</p>
+    <div class="placeholderGrid" id="placeholderGrid"></div>
+    <div class="status" id="appStatus"></div>
+  </section>
+
+  <script>
+    const setupView = document.getElementById('setupView');
+    const appView = document.getElementById('appView');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const audioSelect = document.getElementById('audioSelect');
+    const okButton = document.getElementById('okButton');
+    const setupStatus = document.getElementById('setupStatus');
+    const appStatus = document.getElementById('appStatus');
+    const videoTile = document.getElementById('videoTile');
+    const liveVideo = document.getElementById('liveVideo');
+    const fftCanvas = document.getElementById('fftCanvas');
+    const placeholderGrid = document.getElementById('placeholderGrid');
+    const scaleSlider = document.getElementById('scaleSlider');
+    const scaleValue = document.getElementById('scaleValue');
+
+    let stream, audioContext, oscillator, gainNode, sinkAudio;
+    let fftFrame = 0, cppnFrame = 0;
+    let scaleDownFactor = Number(scaleSlider.value);
+    let fftBins = new Float32Array(128);
+    let fftEnergy = 0, fftCentroid = 0, fftFlux = 0;
+    let prevBins = new Float32Array(128);
+
+    const workCanvas = document.createElement('canvas');
+    const workCtx = workCanvas.getContext('2d', { willReadFrequently: true });
+    const fftCtx = fftCanvas.getContext('2d');
+
+    const cppnTiles = [];
+    const ACTS = {
+      sin: (x) => Math.sin(x),
+      cos: (x) => Math.cos(x),
+      tanh: (x) => Math.tanh(x),
+      sigmoid: (x) => (1 / (1 + Math.exp(-x))) * 2 - 1,
+      gaussian: (x) => Math.exp(-x * x) * 2 - 1,
+      linear: (x) => x,
+    };
+    const ACT_NAMES = Object.keys(ACTS);
+
+    function setStatus(el, message) { el.textContent = message || ''; }
+    function randf(a, b) { return a + Math.random() * (b - a); }
+    function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+    async function requestMediaAccess() {
+      try {
+        const temp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        temp.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        setStatus(setupStatus, `Camera permission is required: ${err.message}`);
+      }
+    }
+
+    function createOption(value, label) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }
+
+    async function populateDevices() {
+      cameraSelect.innerHTML = '';
+      audioSelect.innerHTML = '';
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        setStatus(setupStatus, 'enumerateDevices is not supported in this browser.');
+        return;
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      const audioOutputs = devices.filter((d) => d.kind === 'audiooutput');
+
+      if (!videoInputs.length) cameraSelect.appendChild(createOption('', 'No camera devices found'));
+      else videoInputs.forEach((d, i) => cameraSelect.appendChild(createOption(d.deviceId, d.label || `Camera ${i + 1}`)));
+
+      if (!audioOutputs.length) audioSelect.appendChild(createOption('', 'Default output (no explicit device list)'));
+      else audioOutputs.forEach((d, i) => audioSelect.appendChild(createOption(d.deviceId, d.label || `Audio Output ${i + 1}`)));
+
+      setStatus(setupStatus, '');
+    }
+
+    async function startCameraFeed(cameraId) {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({ video: cameraId ? { deviceId: { exact: cameraId } } : true, audio: false });
+      liveVideo.srcObject = stream;
+      await liveVideo.play();
+    }
+
+    function nextPow2(n) { return 1 << Math.floor(Math.log2(Math.max(2, n))); }
+
+    function fftReal(samples) {
+      const n = samples.length;
+      const re = new Float32Array(n);
+      const im = new Float32Array(n);
+      re.set(samples);
+
+      let j = 0;
+      for (let i = 1; i < n; i += 1) {
+        let bit = n >> 1;
+        while (j & bit) { j ^= bit; bit >>= 1; }
+        j ^= bit;
+        if (i < j) {
+          [re[i], re[j]] = [re[j], re[i]];
+          [im[i], im[j]] = [im[j], im[i]];
+        }
+      }
+
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = (-2 * Math.PI) / len;
+        const wlenRe = Math.cos(ang);
+        const wlenIm = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let wRe = 1, wIm = 0;
+          for (let k = 0; k < len / 2; k += 1) {
+            const uRe = re[i + k], uIm = im[i + k];
+            const vRe = re[i + k + len / 2] * wRe - im[i + k + len / 2] * wIm;
+            const vIm = re[i + k + len / 2] * wIm + im[i + k + len / 2] * wRe;
+            re[i + k] = uRe + vRe;
+            im[i + k] = uIm + vIm;
+            re[i + k + len / 2] = uRe - vRe;
+            im[i + k + len / 2] = uIm - vIm;
+            const nextWRe = wRe * wlenRe - wIm * wlenIm;
+            wIm = wRe * wlenIm + wIm * wlenRe;
+            wRe = nextWRe;
+          }
+        }
+      }
+
+      const mags = new Float32Array(n / 2);
+      for (let i = 0; i < n / 2; i += 1) mags[i] = Math.hypot(re[i], im[i]);
+      return mags;
+    }
+
+    function downsampleBins(mags, count = 128) {
+      const out = new Float32Array(count);
+      if (!mags.length) return out;
+      for (let i = 0; i < count; i += 1) {
+        const start = Math.floor((i / count) * mags.length);
+        const end = Math.max(start + 1, Math.floor(((i + 1) / count) * mags.length));
+        let sum = 0;
+        for (let j = start; j < end; j += 1) sum += mags[j];
+        out[i] = sum / (end - start);
+      }
+      return out;
+    }
+
+    function drawFFT() {
+      if (!liveVideo.videoWidth || !liveVideo.videoHeight) {
+        fftFrame = requestAnimationFrame(drawFFT);
+        return;
+      }
+
+      const w = Math.max(32, Math.floor(liveVideo.videoWidth / scaleDownFactor));
+      const h = Math.max(18, Math.floor(liveVideo.videoHeight / scaleDownFactor));
+      workCanvas.width = w; workCanvas.height = h;
+      workCtx.drawImage(liveVideo, 0, 0, w, h);
+
+      const y = Math.floor(h / 2);
+      const row = workCtx.getImageData(0, y, w, 1).data;
+      const n = nextPow2(w);
+      const samples = new Float32Array(n);
+      for (let i = 0; i < n; i += 1) {
+        const x = Math.floor((i / n) * w);
+        const idx = x * 4;
+        const luma = 0.2126 * row[idx] + 0.7152 * row[idx + 1] + 0.0722 * row[idx + 2];
+        samples[i] = (luma - 128) / 128;
+      }
+
+      const mags = fftReal(samples);
+      const bins = downsampleBins(mags, 128);
+      let maxBin = 1e-6;
+      for (let i = 0; i < bins.length; i += 1) maxBin = Math.max(maxBin, bins[i]);
+      for (let i = 0; i < bins.length; i += 1) bins[i] /= maxBin;
+
+      let e = 0, cNum = 0, cDen = 0, f = 0;
+      for (let i = 0; i < bins.length; i += 1) {
+        const b = bins[i];
+        e += b;
+        cNum += i * b;
+        cDen += b;
+        f += Math.abs(b - prevBins[i]);
+      }
+      fftEnergy = e / bins.length;
+      fftCentroid = cDen > 1e-6 ? (cNum / cDen) / (bins.length - 1) : 0;
+      fftFlux = f / bins.length;
+      prevBins = bins;
+      fftBins = bins;
+
+      fftCtx.clearRect(0, 0, fftCanvas.width, fftCanvas.height);
+      fftCtx.fillStyle = '#0f172a';
+      fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+      const barCount = Math.min(96, bins.length);
+      const barW = fftCanvas.width / barCount;
+      for (let i = 0; i < barCount; i += 1) {
+        const mag = bins[i];
+        const barH = mag * (fftCanvas.height - 10);
+        const hue = 210 - (i / barCount) * 140;
+        fftCtx.fillStyle = `hsl(${hue}, 90%, 60%)`;
+        fftCtx.fillRect(i * barW + 1, fftCanvas.height - barH, barW - 2, barH);
+      }
+
+      fftFrame = requestAnimationFrame(drawFFT);
+    }
+
+    function makeCPPN(seedIndex) {
+      const inCount = 8;
+      const h1 = 7;
+      const h2 = 6;
+      const outCount = 3;
+
+      const mkLayer = (from, to) => {
+        const w = Array.from({ length: to }, () => Array.from({ length: from }, () => randf(-2, 2)));
+        const b = Array.from({ length: to }, () => randf(-1, 1));
+        const act = Array.from({ length: to }, () => choice(ACT_NAMES));
+        return { w, b, act };
+      };
+
+      return {
+        id: seedIndex,
+        l1: mkLayer(inCount, h1),
+        l2: mkLayer(h1, h2),
+        l3: mkLayer(h2, outCount),
+      };
+    }
+
+    function evalLayer(layer, input) {
+      const out = new Float32Array(layer.w.length);
+      for (let i = 0; i < layer.w.length; i += 1) {
+        let s = layer.b[i];
+        for (let j = 0; j < layer.w[i].length; j += 1) s += layer.w[i][j] * input[j];
+        out[i] = ACTS[layer.act[i]](s);
+      }
+      return out;
+    }
+
+    function evalCPPN(net, input) {
+      const h1 = evalLayer(net.l1, input);
+      const h2 = evalLayer(net.l2, h1);
+      const o = evalLayer(net.l3, h2);
+      return [o[0], o[1], o[2]];
+    }
+
+    function createCPPNGrid() {
+      placeholderGrid.innerHTML = '';
+      cppnTiles.length = 0;
+
+      for (let i = 0; i < 9; i += 1) {
+        const tile = document.createElement('div');
+        tile.className = 'placeholderTile';
+
+        const label = document.createElement('div');
+        label.className = 'name';
+        label.textContent = `CPPN ${i + 1}`;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 180;
+
+        tile.appendChild(label);
+        tile.appendChild(canvas);
+        placeholderGrid.appendChild(tile);
+
+        const low = document.createElement('canvas');
+        low.width = 64;
+        low.height = 36;
+
+        cppnTiles.push({
+          id: i,
+          canvas,
+          ctx: canvas.getContext('2d'),
+          low,
+          lowCtx: low.getContext('2d'),
+          net: makeCPPN(i),
+          phase: randf(0, Math.PI * 2),
+        });
+      }
+    }
+
+    function renderCPPNPlaceholders(ts) {
+      const t = ts * 0.001;
+      for (const tile of cppnTiles) {
+        const { low, lowCtx, ctx, canvas, net, id, phase } = tile;
+        const w = low.width, h = low.height;
+        const img = lowCtx.createImageData(w, h);
+        const d = img.data;
+
+        const binA = fftBins[(id * 13) % fftBins.length] || 0;
+        const binB = fftBins[(id * 29 + 7) % fftBins.length] || 0;
+
+        let p = 0;
+        for (let y = 0; y < h; y += 1) {
+          const ny = (y / (h - 1)) * 2 - 1;
+          for (let x = 0; x < w; x += 1) {
+            const nx = (x / (w - 1)) * 2 - 1;
+            const r = Math.hypot(nx, ny);
+
+            const input = [
+              nx,
+              ny,
+              r,
+              Math.sin(t * 0.75 + phase),
+              fftEnergy * 2 - 1,
+              fftCentroid * 2 - 1,
+              clamp(fftFlux * 4 - 1, -1, 1),
+              (binA * 0.6 + binB * 0.4) * 2 - 1,
+            ];
+
+            const [or, og, ob] = evalCPPN(net, input);
+            d[p++] = Math.floor(clamp((or + 1) * 127.5, 0, 255));
+            d[p++] = Math.floor(clamp((og + 1) * 127.5, 0, 255));
+            d[p++] = Math.floor(clamp((ob + 1) * 127.5, 0, 255));
+            d[p++] = 255;
+          }
+        }
+
+        lowCtx.putImageData(img, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(low, 0, 0, canvas.width, canvas.height);
+      }
+
+      cppnFrame = requestAnimationFrame(renderCPPNPlaceholders);
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 0.07;
+
+        sinkAudio = new Audio();
+        sinkAudio.autoplay = true;
+
+        const dest = audioContext.createMediaStreamDestination();
+        gainNode.connect(dest);
+        sinkAudio.srcObject = dest.stream;
+
+        if (audioSelect.value && typeof sinkAudio.setSinkId === 'function') {
+          await sinkAudio.setSinkId(audioSelect.value);
+        } else if (audioSelect.value && typeof sinkAudio.setSinkId !== 'function') {
+          setStatus(appStatus, 'setSinkId is not supported here; using default audio output.');
+        }
+      }
+      if (audioContext.state === 'suspended') await audioContext.resume();
+    }
+
+    async function playTone() {
+      await ensureAudio();
+      if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+      }
+      oscillator = audioContext.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 440;
+      oscillator.connect(gainNode);
+      oscillator.start();
+    }
+
+    scaleSlider.addEventListener('input', () => {
+      scaleDownFactor = Number(scaleSlider.value);
+      scaleValue.textContent = String(scaleDownFactor);
+    });
+
+    videoTile.addEventListener('click', async () => {
+      videoTile.classList.add('selected');
+      await playTone();
+      setStatus(appStatus, `Playing 440Hz on selected output. FFT scale-down factor: ${scaleDownFactor}x.`);
+    });
+
+    okButton.addEventListener('click', async () => {
+      okButton.disabled = true;
+      setStatus(setupStatus, 'Initializing camera, FFT, and CPPN tiles...');
+      try {
+        await startCameraFeed(cameraSelect.value);
+        createCPPNGrid();
+        if (fftFrame) cancelAnimationFrame(fftFrame);
+        if (cppnFrame) cancelAnimationFrame(cppnFrame);
+        drawFFT();
+        renderCPPNPlaceholders(performance.now());
+        setupView.style.display = 'none';
+        appView.style.display = 'block';
+        setStatus(appStatus, 'Live tile selection starts 440Hz. FFT features now drive one CPPN per placeholder tile.');
+      } catch (err) {
+        setStatus(setupStatus, `Failed to initialize: ${err.message}`);
+      } finally {
+        okButton.disabled = false;
+      }
+    });
+
+    (async function init() {
+      await requestMediaAccess();
+      await populateDevices();
+      navigator.mediaDevices?.addEventListener?.('devicechange', populateDevices);
+      scaleValue.textContent = String(scaleDownFactor);
+    })();
+  </script>
+</body>
+</html>
