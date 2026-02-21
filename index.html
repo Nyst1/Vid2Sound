@@ -7,7 +7,7 @@
   <style>
     :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
     body { margin: 0; background: #111; color: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
-    .panel { width: min(1150px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+    .panel { width: min(1150px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); position: relative; }
     h1 { margin: 0 0 12px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
     .field { flex: 1 1 220px; }
@@ -35,6 +35,20 @@
     .placeholderTile .meta { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #a7f3d0; }
     .starBtn { position: absolute; left: 6px; top: 6px; z-index: 3; border: 1px solid #64748b; background: rgba(15,23,42,.8); color: #cbd5e1; width: 32px; height: 28px; padding: 0; border-radius: 6px; font-size: 16px; line-height: 1; }
     .starBtn.on { color: #fde68a; border-color: #f59e0b; background: rgba(120,53,15,.75); }
+    .annBtn { position: absolute; right: 6px; bottom: 6px; z-index: 3; border: 1px solid #6366f1; background: rgba(30,27,75,.82); color: #c7d2fe; width: 46px; height: 28px; padding: 0; border-radius: 6px; font-size: 12px; line-height: 1; }
+    .annBtn:hover { background: rgba(55,48,163,.9); }
+
+    .infoBtn { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; padding: 0; border-radius: 999px; font-size: 18px; border: 1px solid #38bdf8; color: #bae6fd; background: rgba(2, 132, 199, 0.18); z-index: 6; }
+
+    .modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; box-sizing: border-box; }
+    .modalOverlay.open { display: flex; }
+    .modalCard { width: min(900px, 100%); max-height: 90vh; overflow: auto; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px; box-sizing: border-box; }
+    .modalHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .modalHead h2 { margin: 0; font-size: 1.2rem; }
+    .closeBtn { width: auto; padding: 8px 12px; }
+    .annCanvasWrap { border: 1px solid #334155; border-radius: 10px; background: radial-gradient(circle at top, #111827, #020617); padding: 8px; }
+    .annCanvas { width: 100%; height: auto; display: block; }
+    .infoCopy { line-height: 1.45; color: #e2e8f0; }
 
     .instruction { margin-top: 12px; font-size: 1.02rem; }
     .status { margin-top: 10px; color: #facc15; min-height: 1.2em; }
@@ -59,6 +73,7 @@
   </section>
 
   <section class="panel" id="appView">
+    <button class="infoBtn" id="infoBtn" title="About this app">ⓘ</button>
     <h1>Camera + FFT + CPPN AV Tiles</h1>
     <div class="row">
       <div class="field">
@@ -98,6 +113,33 @@
     <div class="status" id="appStatus"></div>
   </section>
 
+  <div class="modalOverlay" id="annModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <h2 id="annTitle">CPPN ANN</h2>
+        <button class="closeBtn" id="closeAnnBtn">Close</button>
+      </div>
+      <div class="annCanvasWrap">
+        <canvas id="annCanvas" class="annCanvas" width="860" height="520"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="infoModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <h2>About this app</h2>
+        <button class="closeBtn" id="closeInfoBtn">Close</button>
+      </div>
+      <div class="infoCopy">
+        <p><strong>The app was vide-coded by Per Nystedt suing OpenAI codex.</strong></p>
+        <p>This system converts each video frame line into FFT bins, smooths those bins with a running mean, and feeds shared FFT features into CPPNs. Each tile has its own CPPN that generates both visuals and sound controls from the same family of inputs.</p>
+        <p><strong>Controls:</strong> FFT scale-down controls FFT input resolution; FFT running-mean smoothing damps rapid changes; mutation rate controls how strongly child nets mutate after star-based NEAT recombination.</p>
+        <p><strong>Buttons:</strong> Recombine applies crossover/mutation from top-rated starred parents; Randomize regenerates all tile CPPNs; Stop Tile Sound silences selected tile audio; each tile's ☆ selects parents and each tile's ANN button opens a labelled network graph with transfer functions.</p>
+      </div>
+    </div>
+  </div>
+
   <script>
     const setupView = document.getElementById('setupView');
     const appView = document.getElementById('appView');
@@ -123,6 +165,13 @@
     const recombineBtn = document.getElementById('recombineBtn');
     const randomizeBtn = document.getElementById('randomizeBtn');
     const stopTileSoundBtn = document.getElementById('stopTileSoundBtn');
+    const infoBtn = document.getElementById('infoBtn');
+    const infoModal = document.getElementById('infoModal');
+    const closeInfoBtn = document.getElementById('closeInfoBtn');
+    const annModal = document.getElementById('annModal');
+    const closeAnnBtn = document.getElementById('closeAnnBtn');
+    const annCanvas = document.getElementById('annCanvas');
+    const annTitle = document.getElementById('annTitle');
 
     let stream, audioContext, sinkAudio;
     let videoOscillator, toneMasterGain;
@@ -378,6 +427,15 @@
 
     function starredTiles() { return cppnTiles.filter((t) => t.starred); }
 
+    function clearStars() {
+      cppnTiles.forEach((tile) => {
+        tile.starred = false;
+        tile.starBtn.classList.remove('on');
+        tile.starBtn.textContent = '☆';
+        tile.element.classList.remove('starred');
+      });
+    }
+
     function recombineFromStarred() {
       const stars = starredTiles();
       if (stars.length < 2) {
@@ -396,7 +454,79 @@
         tile.net = child;
       }
 
+      clearStars();
       setStatus(appStatus, `Recombined from Tile ${p1.id + 1} + Tile ${p2.id + 1} with mutation ${mutationRate.toFixed(2)}.`);
+    }
+
+    function openModal(modal) { modal.classList.add('open'); }
+    function closeModal(modal) { modal.classList.remove('open'); }
+
+    function drawNetLayer(ctx, layerNodes, x, labels) {
+      const ys = [];
+      const h = ctx.canvas.height;
+      for (let i = 0; i < layerNodes; i += 1) ys.push(((i + 1) / (layerNodes + 1)) * h);
+      ys.forEach((y, i) => {
+        ctx.beginPath();
+        ctx.fillStyle = '#38bdf8';
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        if (labels?.[i]) {
+          ctx.fillStyle = '#cbd5e1';
+          ctx.font = '12px Arial';
+          ctx.fillText(labels[i], x + 18, y + 4);
+        }
+      });
+      return ys;
+    }
+
+    function drawConnections(ctx, x1, ys1, x2, ys2, wMat) {
+      for (let i = 0; i < ys2.length; i += 1) {
+        for (let j = 0; j < ys1.length; j += 1) {
+          const w = wMat[i][j];
+          const a = Math.min(Math.abs(w) / 2.5, 1);
+          ctx.strokeStyle = w >= 0 ? `rgba(16,185,129,${0.08 + a * 0.35})` : `rgba(248,113,113,${0.08 + a * 0.35})`;
+          ctx.beginPath();
+          ctx.moveTo(x1 + 12, ys1[j]);
+          ctx.lineTo(x2 - 12, ys2[i]);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function showANNPopup(tile) {
+      annTitle.textContent = `Tile ${tile.id + 1} CPPN Graph`;
+      const ctx = annCanvas.getContext('2d');
+      const c = annCanvas;
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      const inputLabels = ['sin(t)','cos(t)','sin(0.9t)','cos(1.4t)','energy','centroid','flux','low bin','mid bin','high bin'];
+      const outputLabels = ['pitch','harmonic','attack','decay','texture','smooth','distort','beat','high','loud'];
+
+      const x0 = 90, x1 = 300, x2 = 520, x3 = 760;
+      const y0 = drawNetLayer(ctx, 10, x0, inputLabels);
+      const y1 = drawNetLayer(ctx, tile.net.l1.w.length, x1);
+      const y2 = drawNetLayer(ctx, tile.net.l2.w.length, x2);
+      const y3 = drawNetLayer(ctx, tile.net.l3.w.length, x3, outputLabels);
+
+      drawConnections(ctx, x0, y0, x1, y1, tile.net.l1.w);
+      drawConnections(ctx, x1, y1, x2, y2, tile.net.l2.w);
+      drawConnections(ctx, x2, y2, x3, y3, tile.net.l3.w);
+
+      const writeActs = (x, ys, layer) => {
+        ctx.font = '10px Arial';
+        ctx.fillStyle = '#fde68a';
+        ys.forEach((y, i) => ctx.fillText(layer.act[i], x - 32, y + 3));
+      };
+      writeActs(x1, y1, tile.net.l1);
+      writeActs(x2, y2, tile.net.l2);
+      writeActs(x3, y3, tile.net.l3);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '13px Arial';
+      ctx.fillText('Each node label near hidden/output neurons is its transfer function.', 16, 20);
+      openModal(annModal);
     }
 
     async function ensureAudio() {
@@ -576,6 +706,11 @@
         starBtn.textContent = '☆';
         starBtn.title = 'Star-mark tile for NEAT parent selection';
 
+        const annBtn = document.createElement('button');
+        annBtn.className = 'annBtn';
+        annBtn.textContent = 'ANN';
+        annBtn.title = 'Show CPPN network graph';
+
         const label = document.createElement('div');
         label.className = 'name';
         label.textContent = `Tile ${i + 1}`;
@@ -592,6 +727,7 @@
         tile.appendChild(label);
         tile.appendChild(meta);
         tile.appendChild(canvas);
+        tile.appendChild(annBtn);
         placeholderGrid.appendChild(tile);
 
         const low = document.createElement('canvas');
@@ -616,6 +752,7 @@
 
         tile.addEventListener('click', async (e) => {
           if (e.target === starBtn) return;
+          if (e.target === annBtn) return;
           await selectTileForAudio(obj);
           setStatus(appStatus, `Tile ${obj.id + 1} selected. CPPN audio maps FFT to pitch, harmonics, envelope, texture, smoothness and distortion.`);
         });
@@ -636,6 +773,11 @@
           const count = starredTiles().length;
           if (count >= 2) recombineFromStarred();
           else setStatus(appStatus, `Starred tiles: ${count}. Star one more tile to trigger recombination.`);
+        });
+
+        annBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showANNPopup(obj);
         });
 
         cppnTiles.push(obj);
@@ -728,14 +870,20 @@
         stopTileAudio(tile);
         tile.net = makeCPPN(tile.id);
         tile.rating = 5;
-        tile.starred = false;
         tile.meta.textContent = 'R: 5.0';
-        tile.starBtn.classList.remove('on');
-        tile.starBtn.textContent = '☆';
-        tile.element.classList.remove('starred');
       });
+      clearStars();
       selectedTileId = -1;
       setStatus(appStatus, 'Population randomized and star marks cleared.');
+    });
+
+    infoBtn.addEventListener('click', () => openModal(infoModal));
+    closeInfoBtn.addEventListener('click', () => closeModal(infoModal));
+    closeAnnBtn.addEventListener('click', () => closeModal(annModal));
+    [infoModal, annModal].forEach((m) => {
+      m.addEventListener('click', (e) => {
+        if (e.target === m) closeModal(m);
+      });
     });
 
     stopTileSoundBtn.addEventListener('click', () => {
