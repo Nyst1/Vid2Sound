@@ -1014,6 +1014,15 @@
       });
     });
 
+    infoBtn.addEventListener('click', () => openModal(infoModal));
+    closeInfoBtn.addEventListener('click', () => closeModal(infoModal));
+    closeAnnBtn.addEventListener('click', () => closeModal(annModal));
+    [infoModal, annModal].forEach((m) => {
+      m.addEventListener('click', (e) => {
+        if (e.target === m) closeModal(m);
+      });
+    });
+
     stopTileSoundBtn.addEventListener('click', () => {
       stopSelectedTileSound();
       setStatus(appStatus, 'Selected tile sound stopped.');
