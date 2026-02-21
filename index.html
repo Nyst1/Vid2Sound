@@ -7,10 +7,10 @@
   <style>
     :root { color-scheme: light dark; font-family: Arial, Helvetica, sans-serif; }
     body { margin: 0; background: #111; color: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
-    .panel { width: min(1150px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+    .panel { width: min(1150px, 100%); background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.4); position: relative; }
     h1 { margin: 0 0 12px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-    .field { flex: 1 1 240px; }
+    .field { flex: 1 1 220px; }
     label { display: block; margin-bottom: 6px; font-weight: bold; }
     select, button, input[type='range'] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #232323; color: #f5f5f5; box-sizing: border-box; }
     button { cursor: pointer; font-weight: bold; }
@@ -35,9 +35,22 @@
     .placeholderTile .meta { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: .72rem; z-index: 2; color: #a7f3d0; }
     .starBtn { position: absolute; left: 6px; top: 6px; z-index: 3; border: 1px solid #64748b; background: rgba(15,23,42,.8); color: #cbd5e1; width: 32px; height: 28px; padding: 0; border-radius: 6px; font-size: 16px; line-height: 1; }
     .starBtn.on { color: #fde68a; border-color: #f59e0b; background: rgba(120,53,15,.75); }
+    .annBtn { position: absolute; right: 6px; bottom: 6px; z-index: 3; border: 1px solid #6366f1; background: rgba(30,27,75,.82); color: #c7d2fe; width: 46px; height: 28px; padding: 0; border-radius: 6px; font-size: 12px; line-height: 1; }
+    .annBtn:hover { background: rgba(55,48,163,.9); }
+
+    .infoBtn { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; padding: 0; border-radius: 999px; font-size: 18px; border: 1px solid #38bdf8; color: #bae6fd; background: rgba(2, 132, 199, 0.18); z-index: 6; }
+
+    .modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; box-sizing: border-box; }
+    .modalOverlay.open { display: flex; }
+    .modalCard { width: min(900px, 100%); max-height: 90vh; overflow: auto; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px; box-sizing: border-box; }
+    .modalHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .modalHead h2 { margin: 0; font-size: 1.2rem; }
+    .closeBtn { width: auto; padding: 8px 12px; }
+    .annCanvasWrap { border: 1px solid #334155; border-radius: 10px; background: radial-gradient(circle at top, #111827, #020617); padding: 8px; }
+    .annCanvas { width: 100%; height: auto; display: block; }
+    .infoCopy { line-height: 1.45; color: #e2e8f0; }
 
     .instruction { margin-top: 12px; font-size: 1.02rem; }
-
     .status { margin-top: 10px; color: #facc15; min-height: 1.2em; }
   </style>
 </head>
@@ -60,9 +73,8 @@
   </section>
 
   <section class="panel" id="appView">
+    <button class="infoBtn" id="infoBtn" title="About this app">ⓘ</button>
     <h1>Camera + FFT + CPPN AV Tiles</h1>
-    <h1>Camera + FFT + CPPN AV Tiles</h1>
-
     <div class="row">
       <div class="field">
         <label for="scaleSlider">FFT scale-down factor: <span id="scaleValue">4</span>x</label>
@@ -80,14 +92,12 @@
 
     <div class="row controls">
       <button id="recombineBtn">Recombine Star-Marked Tiles (NEAT-style + Mutation)</button>
-      <button id="recombineBtn">Recombine Star-Marked Tiles (NEAT-style + Mutation)</button>
       <button id="randomizeBtn">Randomize Population</button>
       <button id="stopTileSoundBtn">Stop Tile Sound</button>
     </div>
 
     <div class="topTiles">
       <div class="tile selectable" id="videoTile">
-        <span class="tileLabel">Live Camera (click: 440Hz check tone)</span>
         <span class="tileLabel">Live Camera (click: 440Hz check tone)</span>
         <video id="liveVideo" autoplay muted playsinline></video>
       </div>
@@ -97,35 +107,71 @@
       </div>
     </div>
 
-    <p class="instruction">Click a tile to hear CPPN-generated sound (base + rhythm + mid/high). Star at least 2 tiles; when 2+ are starred, recombination with mutation runs automatically.</p>
-    <p class="instruction">Click a tile to hear CPPN-generated sound (base + rhythm + mid/high). Star at least 2 tiles; when 2+ are starred, recombination with mutation runs automatically.</p>
+    <p class="instruction">Click a tile to hear CPPN-generated sound driven by FFT features (20-120Hz beats + higher harmonics, envelope/texture/distortion).</p>
+    <p class="instruction">Star at least 2 tiles. As soon as two are starred, NEAT-style recombination + mutation is applied.</p>
     <div class="placeholderGrid" id="placeholderGrid"></div>
     <div class="status" id="appStatus"></div>
   </section>
 
+  <div class="modalOverlay" id="annModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <h2 id="annTitle">CPPN ANN</h2>
+        <button class="closeBtn" id="closeAnnBtn">Close</button>
+      </div>
+      <div class="annCanvasWrap">
+        <canvas id="annCanvas" class="annCanvas" width="860" height="520"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="infoModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <h2>About this app</h2>
+        <button class="closeBtn" id="closeInfoBtn">Close</button>
+      </div>
+      <div class="infoCopy">
+        <p><strong>The app was vide-coded by Per Nystedt suing OpenAI codex.</strong></p>
+        <p>This system converts each video frame line into FFT bins, smooths those bins with a running mean, and feeds shared FFT features into CPPNs. Each tile has its own CPPN that generates both visuals and sound controls from the same family of inputs.</p>
+        <p><strong>Controls:</strong> FFT scale-down controls FFT input resolution; FFT running-mean smoothing damps rapid changes; mutation rate controls how strongly child nets mutate after star-based NEAT recombination.</p>
+        <p><strong>Buttons:</strong> Recombine applies crossover/mutation from top-rated starred parents; Randomize regenerates all tile CPPNs; Stop Tile Sound silences selected tile audio; each tile's ☆ selects parents and each tile's ANN button opens a labelled network graph with transfer functions.</p>
+      </div>
+    </div>
+  </div>
+
   <script>
     const setupView = document.getElementById('setupView');
     const appView = document.getElementById('appView');
+    const setupStatus = document.getElementById('setupStatus');
+    const appStatus = document.getElementById('appStatus');
+
     const cameraSelect = document.getElementById('cameraSelect');
     const audioSelect = document.getElementById('audioSelect');
     const okButton = document.getElementById('okButton');
-    const setupStatus = document.getElementById('setupStatus');
-    const appStatus = document.getElementById('appStatus');
+
     const videoTile = document.getElementById('videoTile');
     const liveVideo = document.getElementById('liveVideo');
     const fftCanvas = document.getElementById('fftCanvas');
     const placeholderGrid = document.getElementById('placeholderGrid');
+
     const scaleSlider = document.getElementById('scaleSlider');
     const scaleValue = document.getElementById('scaleValue');
     const smoothSlider = document.getElementById('smoothSlider');
     const smoothValue = document.getElementById('smoothValue');
-    const smoothSlider = document.getElementById('smoothSlider');
-    const smoothValue = document.getElementById('smoothValue');
     const mutRateSlider = document.getElementById('mutRateSlider');
     const mutRateValue = document.getElementById('mutRateValue');
+
     const recombineBtn = document.getElementById('recombineBtn');
     const randomizeBtn = document.getElementById('randomizeBtn');
     const stopTileSoundBtn = document.getElementById('stopTileSoundBtn');
+    const infoBtn = document.getElementById('infoBtn');
+    const infoModal = document.getElementById('infoModal');
+    const closeInfoBtn = document.getElementById('closeInfoBtn');
+    const annModal = document.getElementById('annModal');
+    const closeAnnBtn = document.getElementById('closeAnnBtn');
+    const annCanvas = document.getElementById('annCanvas');
+    const annTitle = document.getElementById('annTitle');
 
     let stream, audioContext, sinkAudio;
     let videoOscillator, toneMasterGain;
@@ -153,31 +199,17 @@
       sigmoid: (x) => (1 / (1 + Math.exp(-x))) * 2 - 1,
       gaussian: (x) => Math.exp(-x * x) * 2 - 1,
       linear: (x) => x,
+      abs: (x) => Math.min(Math.abs(x), 1),
+      square: (x) => x >= 0 ? 1 : -1,
     };
     const ACT_NAMES = Object.keys(ACTS);
 
     function setStatus(el, message) { el.textContent = message || ''; }
-
-
-    function stripMergeConflictArtifacts() {
-      const markerPattern = /(^|\n)\s*(<{7}[^\n]*|={7}|>{7}[^\n]*)(?=\n|$)/g;
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      const textNodes = [];
-      while (walker.nextNode()) textNodes.push(walker.currentNode);
-      for (const node of textNodes) {
-        const cleaned = node.nodeValue.replace(markerPattern, '').replace(/\n{3,}/g, '\n\n');
-        if (cleaned !== node.nodeValue) node.nodeValue = cleaned;
-      }
-
-      const seenIds = new Set();
-      document.querySelectorAll('[id]').forEach((el) => {
-        if (seenIds.has(el.id)) el.remove();
-        else seenIds.add(el.id);
-      });
-    }
     function randf(a, b) { return a + Math.random() * (b - a); }
     function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
     function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+    function nextPow2(n) { return 1 << Math.floor(Math.log2(Math.max(2, n))); }
+    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
     async function requestMediaAccess() {
       try {
@@ -212,8 +244,6 @@
 
       if (!audioOutputs.length) audioSelect.appendChild(createOption('', 'Default output (no explicit device list)'));
       else audioOutputs.forEach((d, i) => audioSelect.appendChild(createOption(d.deviceId, d.label || `Audio Output ${i + 1}`)));
-
-      setStatus(setupStatus, '');
     }
 
     async function startCameraFeed(cameraId) {
@@ -222,8 +252,6 @@
       liveVideo.srcObject = stream;
       await liveVideo.play();
     }
-
-    function nextPow2(n) { return 1 << Math.floor(Math.log2(Math.max(2, n))); }
 
     function fftReal(samples) {
       const n = samples.length;
@@ -279,9 +307,7 @@
     }
 
     function smoothBins(newBins) {
-      for (let i = 0; i < fftBins.length; i += 1) {
-        fftBins[i] = fftSmooth * fftBins[i] + (1 - fftSmooth) * newBins[i];
-      }
+      for (let i = 0; i < fftBins.length; i += 1) fftBins[i] = fftSmooth * fftBins[i] + (1 - fftSmooth) * newBins[i];
     }
 
     function drawFFT() {
@@ -307,16 +333,12 @@
       let maxBin = 1e-6;
       for (let i = 0; i < rawBins.length; i += 1) maxBin = Math.max(maxBin, rawBins[i]);
       for (let i = 0; i < rawBins.length; i += 1) rawBins[i] /= maxBin;
-
       smoothBins(rawBins);
 
       let e = 0, cNum = 0, cDen = 0, f = 0;
       for (let i = 0; i < fftBins.length; i += 1) {
         const b = fftBins[i];
-        e += b;
-        cNum += i * b;
-        cDen += b;
-        f += Math.abs(b - prevBins[i]);
+        e += b; cNum += i * b; cDen += b; f += Math.abs(b - prevBins[i]);
       }
       fftEnergy = e / fftBins.length;
       fftCentroid = cDen > 1e-6 ? (cNum / cDen) / (fftBins.length - 1) : 0;
@@ -335,7 +357,6 @@
         fftCtx.fillRect(i * barW + 1, fftCanvas.height - barH, barW - 2, barH);
       }
 
-
       fftFrame = requestAnimationFrame(drawFFT);
     }
 
@@ -350,19 +371,18 @@
     function makeCPPN(seedIndex) {
       return {
         id: seedIndex,
-        l1: mkLayer(8, 8),
-        l2: mkLayer(8, 8),
-        l3: mkLayer(8, 4), // r,g,b,rhythm/audio-control
+        l1: mkLayer(10, 12),
+        l2: mkLayer(12, 12),
+        l3: mkLayer(12, 10), // rgb + audio controls
       };
     }
 
-    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
     function evalLayer(layer, input) {
       const out = new Float32Array(layer.w.length);
       for (let i = 0; i < layer.w.length; i += 1) {
         let s = layer.b[i];
         for (let j = 0; j < layer.w[i].length; j += 1) s += layer.w[i][j] * input[j];
-        out[i] = ACTS[layer.act[i]](s);
+        out[i] = clamp(ACTS[layer.act[i]](s), -1, 1);
       }
       return out;
     }
@@ -370,16 +390,14 @@
     function evalCPPN(net, input) {
       const h1 = evalLayer(net.l1, input);
       const h2 = evalLayer(net.l2, h1);
-      const o = evalLayer(net.l3, h2);
-      return [o[0], o[1], o[2], o[3]];
-      return [o[0], o[1], o[2], o[3]];
+      return evalLayer(net.l3, h2);
     }
 
     function mutateNet(net, rate) {
       const mutateLayer = (layer) => {
         for (let i = 0; i < layer.w.length; i += 1) {
           if (Math.random() < rate) layer.b[i] = clamp(layer.b[i] + randf(-0.35, 0.35), -3, 3);
-          if (Math.random() < rate * 0.35) layer.act[i] = choice(ACT_NAMES);
+          if (Math.random() < rate * 0.5) layer.act[i] = choice(ACT_NAMES);
           for (let j = 0; j < layer.w[i].length; j += 1) {
             if (Math.random() < rate) layer.w[i][j] = clamp(layer.w[i][j] + randf(-0.45, 0.45), -4.5, 4.5);
           }
@@ -389,7 +407,6 @@
     }
 
     function crossoverLayer(layerA, layerB) {
-      const out = deepClone(layerA);
       const out = deepClone(layerA);
       for (let i = 0; i < out.w.length; i += 1) {
         out.b[i] = Math.random() < 0.5 ? layerA.b[i] : layerB.b[i];
@@ -410,6 +427,15 @@
 
     function starredTiles() { return cppnTiles.filter((t) => t.starred); }
 
+    function clearStars() {
+      cppnTiles.forEach((tile) => {
+        tile.starred = false;
+        tile.starBtn.classList.remove('on');
+        tile.starBtn.textContent = '☆';
+        tile.element.classList.remove('starred');
+      });
+    }
+
     function recombineFromStarred() {
       const stars = starredTiles();
       if (stars.length < 2) {
@@ -422,37 +448,108 @@
       const p2 = parents[1];
 
       for (const tile of cppnTiles) {
-        if (tile.id === p1.id || tile.id === p2.id) continue; // keep two elites
-        const donor = parents[Math.floor(Math.random() * parents.length)];
-        const child = crossoverNet(Math.random() < 0.5 ? p1.net : p2.net, donor.net);
+        if (tile.id === p1.id || tile.id === p2.id) continue;
+        const child = crossoverNet(p1.net, p2.net);
         mutateNet(child, mutationRate);
         tile.net = child;
-        tile.rating = 5;
-        tile.meta.textContent = `R: ${tile.rating.toFixed(1)}`;
       }
 
-      setStatus(appStatus, `NEAT recombination applied from starred parents Tile ${p1.id + 1} and Tile ${p2.id + 1} (+ mutation).`);
+      clearStars();
+      setStatus(appStatus, `Recombined from Tile ${p1.id + 1} + Tile ${p2.id + 1} with mutation ${mutationRate.toFixed(2)}.`);
+    }
+
+    function openModal(modal) { modal.classList.add('open'); }
+    function closeModal(modal) { modal.classList.remove('open'); }
+
+    function drawNetLayer(ctx, layerNodes, x, labels) {
+      const ys = [];
+      const h = ctx.canvas.height;
+      for (let i = 0; i < layerNodes; i += 1) ys.push(((i + 1) / (layerNodes + 1)) * h);
+      ys.forEach((y, i) => {
+        ctx.beginPath();
+        ctx.fillStyle = '#38bdf8';
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        if (labels?.[i]) {
+          ctx.fillStyle = '#cbd5e1';
+          ctx.font = '12px Arial';
+          ctx.fillText(labels[i], x + 18, y + 4);
+        }
+      });
+      return ys;
+    }
+
+    function drawConnections(ctx, x1, ys1, x2, ys2, wMat) {
+      for (let i = 0; i < ys2.length; i += 1) {
+        for (let j = 0; j < ys1.length; j += 1) {
+          const w = wMat[i][j];
+          const a = Math.min(Math.abs(w) / 2.5, 1);
+          ctx.strokeStyle = w >= 0 ? `rgba(16,185,129,${0.08 + a * 0.35})` : `rgba(248,113,113,${0.08 + a * 0.35})`;
+          ctx.beginPath();
+          ctx.moveTo(x1 + 12, ys1[j]);
+          ctx.lineTo(x2 - 12, ys2[i]);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function showANNPopup(tile) {
+      annTitle.textContent = `Tile ${tile.id + 1} CPPN Graph`;
+      const ctx = annCanvas.getContext('2d');
+      const c = annCanvas;
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      const inputLabels = ['sin(t)','cos(t)','sin(0.9t)','cos(1.4t)','energy','centroid','flux','low bin','mid bin','high bin'];
+      const outputLabels = ['pitch','harmonic','attack','decay','texture','smooth','distort','beat','high','loud'];
+
+      const x0 = 90, x1 = 300, x2 = 520, x3 = 760;
+      const y0 = drawNetLayer(ctx, 10, x0, inputLabels);
+      const y1 = drawNetLayer(ctx, tile.net.l1.w.length, x1);
+      const y2 = drawNetLayer(ctx, tile.net.l2.w.length, x2);
+      const y3 = drawNetLayer(ctx, tile.net.l3.w.length, x3, outputLabels);
+
+      drawConnections(ctx, x0, y0, x1, y1, tile.net.l1.w);
+      drawConnections(ctx, x1, y1, x2, y2, tile.net.l2.w);
+      drawConnections(ctx, x2, y2, x3, y3, tile.net.l3.w);
+
+      const writeActs = (x, ys, layer) => {
+        ctx.font = '10px Arial';
+        ctx.fillStyle = '#fde68a';
+        ys.forEach((y, i) => ctx.fillText(layer.act[i], x - 32, y + 3));
+      };
+      writeActs(x1, y1, tile.net.l1);
+      writeActs(x2, y2, tile.net.l2);
+      writeActs(x3, y3, tile.net.l3);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '13px Arial';
+      ctx.fillText('Each node label near hidden/output neurons is its transfer function.', 16, 20);
+      openModal(annModal);
     }
 
     async function ensureAudio() {
       if (!audioContext) {
-        audioContext = new AudioContext();
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
         toneMasterGain = audioContext.createGain();
-        toneMasterGain.gain.value = 0.09;
+        toneMasterGain.gain.value = 0.9;
+        toneMasterGain.connect(audioContext.destination);
 
         sinkAudio = new Audio();
-        sinkAudio.autoplay = true;
-
         const dest = audioContext.createMediaStreamDestination();
+        toneMasterGain.disconnect();
         toneMasterGain.connect(dest);
+        toneMasterGain.connect(audioContext.destination);
         sinkAudio.srcObject = dest.stream;
+        sinkAudio.muted = false;
+        await sinkAudio.play();
 
         if (audioSelect.value && typeof sinkAudio.setSinkId === 'function') {
           await sinkAudio.setSinkId(audioSelect.value);
-        } else if (audioSelect.value && typeof sinkAudio.setSinkId !== 'function') {
-          setStatus(appStatus, 'setSinkId unsupported here; using default audio output.');
         }
       }
+
       if (audioContext.state === 'suspended') await audioContext.resume();
     }
 
@@ -466,35 +563,62 @@
       videoOscillator.frequency.value = 440;
       videoOscillator.connect(toneMasterGain);
       videoOscillator.start();
+      setTimeout(() => stopOsc(videoOscillator), 400);
+    }
+
+    function makeDistortionCurve(amount) {
+      const k = Math.max(0, amount * 150);
+      const n = 256;
+      const curve = new Float32Array(n);
+      for (let i = 0; i < n; i += 1) {
+        const x = (i * 2) / n - 1;
+        curve[i] = ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+      }
+      return curve;
     }
 
     function setupTileAudio(tile) {
       if (tile.audio) return;
-      const mkVoice = (type) => {
+      const mkOsc = (type) => {
         const osc = audioContext.createOscillator();
         osc.type = type;
         const gain = audioContext.createGain();
         gain.gain.value = 0;
         osc.connect(gain);
-        gain.connect(toneMasterGain);
         osc.start();
         return { osc, gain };
       };
-      tile.audio = {
-        low: mkVoice('sine'),
-        mid: mkVoice('triangle'),
-        high: mkVoice('sawtooth'),
-      };
+
+      const dry = audioContext.createGain();
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 2200;
+
+      const shaper = audioContext.createWaveShaper();
+      shaper.curve = makeDistortionCurve(0.2);
+      shaper.oversample = '4x';
+
+      dry.connect(filter);
+      filter.connect(shaper);
+      shaper.connect(toneMasterGain);
+
+      const fundamental = mkOsc('sine');
+      const harmonic2 = mkOsc('triangle');
+      const harmonic3 = mkOsc('sawtooth');
+      const beatOsc = mkOsc('square');
+
+      [fundamental, harmonic2, harmonic3, beatOsc].forEach((v) => v.gain.connect(dry));
+
+      tile.audio = { fundamental, harmonic2, harmonic3, beatOsc, dry, filter, shaper };
     }
 
     function stopTileAudio(tile) {
       if (!tile || !tile.audio) return;
-      const voices = [tile.audio.low, tile.audio.mid, tile.audio.high];
-      voices.forEach((v) => {
-        if (!v) return;
-        stopOsc(v.osc);
-        v.gain.disconnect();
-      });
+      const voices = [tile.audio.fundamental, tile.audio.harmonic2, tile.audio.harmonic3, tile.audio.beatOsc];
+      voices.forEach((v) => { if (!v) return; stopOsc(v.osc); v.gain.disconnect(); });
+      tile.audio.dry.disconnect();
+      tile.audio.filter.disconnect();
+      tile.audio.shaper.disconnect();
       tile.audio = null;
     }
 
@@ -511,37 +635,62 @@
 
     function mapCPPNToSound(tile, t) {
       if (!tile || !tile.audio) return;
-      const binA = fftBins[(tile.id * 13) % fftBins.length] || 0;
-      const binB = fftBins[(tile.id * 29 + 7) % fftBins.length] || 0;
-      const rhythmicPh = Math.sin(t * 1.3 + tile.phase);
+      const lowBin = fftBins[(tile.id * 5) % 24] || 0;
+      const midBin = fftBins[(tile.id * 11 + 30) % 72] || 0;
+      const highBin = fftBins[(tile.id * 17 + 80) % 127] || 0;
+
       const input = [
-        Math.sin(t * 0.11 + tile.phase),
-        Math.cos(t * 0.17 + tile.phase),
-        rhythmicPh,
-        Math.sin(t * 0.51),
+        Math.sin(t * 0.17 + tile.phase),
+        Math.cos(t * 0.11 + tile.phase),
+        Math.sin(t * 0.9),
+        Math.cos(t * 1.4),
         fftEnergy * 2 - 1,
         fftCentroid * 2 - 1,
         clamp(fftFlux * 4 - 1, -1, 1),
-        (binA * 0.6 + binB * 0.4) * 2 - 1,
+        lowBin * 2 - 1,
+        midBin * 2 - 1,
+        highBin * 2 - 1,
       ];
 
-      const [o1, o2, o3, o4] = evalCPPN(tile.net, input);
+      const o = evalCPPN(tile.net, input);
+      const pitch = clamp((o[0] + 1) * 0.5, 0, 1);
+      const harmonicMix = clamp((o[1] + 1) * 0.5, 0, 1);
+      const attack = 0.003 + clamp((o[2] + 1) * 0.08, 0.003, 0.083);
+      const decay = 0.03 + clamp((o[3] + 1) * 0.25, 0.03, 0.28);
+      const texture = clamp((o[4] + 1) * 0.5, 0, 1);
+      const smoothness = clamp((o[5] + 1) * 0.5, 0, 1);
+      const distortion = clamp((o[6] + 1) * 0.5, 0, 1);
+      const beatControl = clamp((o[7] + 1) * 0.5, 0, 1);
+      const highControl = clamp((o[8] + 1) * 0.5, 0, 1);
+      const loudness = clamp((o[9] + 1) * 0.5, 0, 1);
 
-      const baseHz = 70 + (o1 + 1) * 90 + fftEnergy * 70;      // base
-      const midHz = 220 + (o2 + 1) * 500 + fftCentroid * 250; // mid
-      const highHz = 900 + (o3 + 1) * 1500 + fftFlux * 450;   // high
+      const fundamentalHz = 80 + pitch * 360 + fftCentroid * 280;
+      const beatHz = 20 + beatControl * 100; // explicit 20-120Hz oscillation range
+      const highHz = 700 + highControl * 3400 + fftFlux * 1400;
 
-      const rhythmGate = clamp((o4 + 1) * 0.5, 0, 1);
-      const pulse = 0.35 + 0.65 * Math.max(0, Math.sin(t * (2 + rhythmGate * 6) + tile.phase));
+      const envGate = Math.max(0, Math.sin(t * (2 + beatControl * 7) + tile.phase));
+      const env = (0.2 + envGate * 0.8) * (0.35 + loudness * 0.65);
 
       const now = audioContext.currentTime;
-      tile.audio.low.osc.frequency.setTargetAtTime(baseHz, now, 0.02);
-      tile.audio.mid.osc.frequency.setTargetAtTime(midHz, now, 0.02);
-      tile.audio.high.osc.frequency.setTargetAtTime(highHz, now, 0.02);
+      const gl = 0.005 + (1 - smoothness) * 0.06;
+      const release = decay;
 
-      tile.audio.low.gain.gain.setTargetAtTime(0.045 * pulse, now, 0.03);
-      tile.audio.mid.gain.gain.setTargetAtTime(0.028 * (0.55 + rhythmGate * 0.45), now, 0.03);
-      tile.audio.high.gain.gain.setTargetAtTime(0.018 * pulse * (0.3 + fftCentroid * 0.7), now, 0.03);
+      const a = tile.audio;
+      a.fundamental.osc.frequency.setTargetAtTime(fundamentalHz, now, gl);
+      a.harmonic2.osc.frequency.setTargetAtTime(fundamentalHz * (1.8 + harmonicMix * 0.8), now, gl);
+      a.harmonic3.osc.frequency.setTargetAtTime(highHz, now, gl);
+      a.beatOsc.osc.frequency.setTargetAtTime(beatHz, now, gl);
+
+      a.fundamental.gain.gain.cancelScheduledValues(now);
+      a.fundamental.gain.gain.setTargetAtTime(0.08 * env, now, attack);
+      a.fundamental.gain.gain.setTargetAtTime(0.045 * env, now + attack, release);
+
+      a.harmonic2.gain.gain.setTargetAtTime(0.06 * harmonicMix * env, now, decay);
+      a.harmonic3.gain.gain.setTargetAtTime(0.045 * texture * (0.3 + fftCentroid), now, decay);
+      a.beatOsc.gain.gain.setTargetAtTime(0.03 * (0.4 + fftEnergy) * env, now, decay);
+
+      a.filter.frequency.setTargetAtTime(500 + smoothness * 5500 + fftCentroid * 1200, now, 0.03);
+      a.shaper.curve = makeDistortionCurve(distortion);
     }
 
     function createCPPNGrid() {
@@ -556,6 +705,11 @@
         starBtn.className = 'starBtn';
         starBtn.textContent = '☆';
         starBtn.title = 'Star-mark tile for NEAT parent selection';
+
+        const annBtn = document.createElement('button');
+        annBtn.className = 'annBtn';
+        annBtn.textContent = 'ANN';
+        annBtn.title = 'Show CPPN network graph';
 
         const label = document.createElement('div');
         label.className = 'name';
@@ -573,6 +727,7 @@
         tile.appendChild(label);
         tile.appendChild(meta);
         tile.appendChild(canvas);
+        tile.appendChild(annBtn);
         placeholderGrid.appendChild(tile);
 
         const low = document.createElement('canvas');
@@ -597,8 +752,9 @@
 
         tile.addEventListener('click', async (e) => {
           if (e.target === starBtn) return;
+          if (e.target === annBtn) return;
           await selectTileForAudio(obj);
-          setStatus(appStatus, `Tile ${obj.id + 1} selected. CPPN now generates base + rhythmic + mid/high tones from FFT inputs.`);
+          setStatus(appStatus, `Tile ${obj.id + 1} selected. CPPN audio maps FFT to pitch, harmonics, envelope, texture, smoothness and distortion.`);
         });
 
         tile.addEventListener('wheel', (e) => {
@@ -619,6 +775,11 @@
           else setStatus(appStatus, `Starred tiles: ${count}. Star one more tile to trigger recombination.`);
         });
 
+        annBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showANNPopup(obj);
+        });
+
         cppnTiles.push(obj);
       }
     }
@@ -633,7 +794,6 @@
 
         const binA = fftBins[(id * 13) % fftBins.length] || 0;
         const binB = fftBins[(id * 29 + 7) % fftBins.length] || 0;
-
 
         let p = 0;
         for (let y = 0; y < h; y += 1) {
@@ -650,24 +810,22 @@
               fftCentroid * 2 - 1,
               clamp(fftFlux * 4 - 1, -1, 1),
               (binA * 0.6 + binB * 0.4) * 2 - 1,
+              Math.sin(t * 0.35),
+              Math.cos(t * 0.27),
             ];
-            const [or, og, ob] = evalCPPN(net, input);
-            d[p++] = Math.floor(clamp((or + 1) * 127.5, 0, 255));
-            d[p++] = Math.floor(clamp((og + 1) * 127.5, 0, 255));
-            d[p++] = Math.floor(clamp((ob + 1) * 127.5, 0, 255));
+            const o = evalCPPN(net, input);
+            d[p++] = Math.floor(clamp((o[0] + 1) * 127.5, 0, 255));
+            d[p++] = Math.floor(clamp((o[1] + 1) * 127.5, 0, 255));
+            d[p++] = Math.floor(clamp((o[2] + 1) * 127.5, 0, 255));
             d[p++] = 255;
           }
         }
-
 
         lowCtx.putImageData(img, 0, 0);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(low, 0, 0, canvas.width, canvas.height);
       }
 
-      if (selectedTileId >= 0 && audioContext) {
-        const tile = cppnTiles.find((x) => x.id === selectedTileId);
-        if (tile && tile.audio) mapCPPNToSound(tile, t);
       if (selectedTileId >= 0 && audioContext) {
         const tile = cppnTiles.find((x) => x.id === selectedTileId);
         if (tile && tile.audio) mapCPPNToSound(tile, t);
@@ -712,14 +870,20 @@
         stopTileAudio(tile);
         tile.net = makeCPPN(tile.id);
         tile.rating = 5;
-        tile.starred = false;
         tile.meta.textContent = 'R: 5.0';
-        tile.starBtn.classList.remove('on');
-        tile.starBtn.textContent = '☆';
-        tile.element.classList.remove('starred');
       });
+      clearStars();
       selectedTileId = -1;
       setStatus(appStatus, 'Population randomized and star marks cleared.');
+    });
+
+    infoBtn.addEventListener('click', () => openModal(infoModal));
+    closeInfoBtn.addEventListener('click', () => closeModal(infoModal));
+    closeAnnBtn.addEventListener('click', () => closeModal(annModal));
+    [infoModal, annModal].forEach((m) => {
+      m.addEventListener('click', (e) => {
+        if (e.target === m) closeModal(m);
+      });
     });
 
     stopTileSoundBtn.addEventListener('click', () => {
@@ -739,8 +903,7 @@
         renderCPPNPlaceholders(performance.now());
         setupView.style.display = 'none';
         appView.style.display = 'block';
-        setStatus(appStatus, 'Ready. Click tile for CPPN-driven sound; star 2+ tiles to auto-run NEAT recombination with mutation.');
-        setStatus(appStatus, 'Ready. Click tile for CPPN-driven sound; star 2+ tiles to auto-run NEAT recombination with mutation.');
+        setStatus(appStatus, 'Ready. Click tile for CPPN-driven sound; star 2+ tiles for auto NEAT recombination with mutation.');
       } catch (err) {
         setStatus(setupStatus, `Failed to initialize: ${err.message}`);
       } finally {
@@ -749,12 +912,10 @@
     });
 
     (async function init() {
-      stripMergeConflictArtifacts();
       await requestMediaAccess();
       await populateDevices();
       navigator.mediaDevices?.addEventListener?.('devicechange', populateDevices);
       scaleValue.textContent = String(scaleDownFactor);
-      smoothValue.textContent = fftSmooth.toFixed(2);
       smoothValue.textContent = fftSmooth.toFixed(2);
       mutRateValue.textContent = mutationRate.toFixed(2);
     })();
