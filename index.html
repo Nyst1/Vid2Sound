@@ -26,6 +26,7 @@
     video, canvas { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
 
     .controls button { flex: 1 1 180px; }
+    #recombineBtn { border-color: #22d3ee; background: linear-gradient(180deg, rgba(6,182,212,.28), rgba(8,145,178,.2)); box-shadow: 0 0 0 1px rgba(34,211,238,.35), 0 0 18px rgba(6,182,212,.35); }
 
     .placeholderGrid { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .placeholderTile { aspect-ratio: 16 / 9; border: 2px solid #4b4b4b; border-radius: 8px; overflow: hidden; position: relative; background: #111; cursor: pointer; }
@@ -92,7 +93,7 @@
 
     <div class="row controls">
       <button id="recombineBtn">Recombine Star-Marked Tiles (NEAT-style + Mutation)</button>
-      <button id="randomizeBtn">Randomize Population</button>
+      <button id="randomizeBtn">Randomize Selected</button>
       <button id="stopTileSoundBtn">Stop Tile Sound</button>
     </div>
 
@@ -135,7 +136,7 @@
         <p><strong>The app was vide-coded by Per Nystedt suing OpenAI codex.</strong></p>
         <p>This system converts each video frame line into FFT bins, smooths those bins with a running mean, and feeds shared FFT features into CPPNs. Each tile has its own CPPN that generates both visuals and sound controls from the same family of inputs.</p>
         <p><strong>Controls:</strong> FFT scale-down controls FFT input resolution; FFT running-mean smoothing damps rapid changes; mutation rate controls how strongly child nets mutate after star-based NEAT recombination.</p>
-        <p><strong>Buttons:</strong> Recombine applies crossover/mutation from top-rated starred parents; Randomize regenerates all tile CPPNs; Stop Tile Sound silences selected tile audio; each tile's ☆ selects parents and each tile's ANN button opens a labelled network graph with transfer functions.</p>
+        <p><strong>Buttons:</strong> Recombine applies crossover/mutation from top-rated starred parents; Randomize Selected re-rolls only the currently selected/playing tile CPPN; Stop Tile Sound silences selected tile audio; each tile's ☆ selects parents and each tile's ANN button opens a labelled network graph with transfer functions.</p>
       </div>
     </div>
   </div>
@@ -177,6 +178,8 @@
     let videoOscillator, toneMasterGain;
     let selectedTileId = -1;
     let fftFrame = 0, cppnFrame = 0;
+    let annVizFrame = 0;
+    let annVizTile = null;
 
     let scaleDownFactor = Number(scaleSlider.value);
     let fftSmooth = Number(smoothSlider.value);
@@ -407,6 +410,16 @@
       return out;
     }
 
+    function evalCPPNTrace(net, input) {
+      const trace = [Float32Array.from(input)];
+      let out = input;
+      for (const layer of net.layers) {
+        out = evalLayer(layer, out);
+        trace.push(Float32Array.from(out));
+      }
+      return trace;
+    }
+
     function blendNetOverlap(target, source, mix = 0.5) {
       const layerCount = Math.min(target.layers.length, source.layers.length);
       for (let li = 0; li < layerCount; li += 1) {
@@ -543,17 +556,35 @@
       }
     }
 
-    function showANNPopup(tile) {
-      annTitle.textContent = `Tile ${tile.id + 1} CPPN Graph`;
+    function drawANNRealtime(tile) {
+      if (!annModal.classList.contains('open') || !annVizTile || annVizTile.id !== tile.id) return;
       const ctx = annCanvas.getContext('2d');
       const c = annCanvas;
       ctx.clearRect(0, 0, c.width, c.height);
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, c.width, c.height);
 
+      const t = performance.now() * 0.001;
+      const lowBin = fftBins[(tile.id * 5) % 24] || 0;
+      const midBin = fftBins[(tile.id * 11 + 30) % 72] || 0;
+      const highBin = fftBins[(tile.id * 17 + 80) % 127] || 0;
+      const inputVec = [
+        Math.sin(t * 0.17 + tile.phase),
+        Math.cos(t * 0.11 + tile.phase),
+        Math.sin(t * 0.9),
+        Math.cos(t * 1.4),
+        fftEnergy * 2 - 1,
+        fftCentroid * 2 - 1,
+        clamp(fftFlux * 4 - 1, -1, 1),
+        lowBin * 2 - 1,
+        midBin * 2 - 1,
+        highBin * 2 - 1,
+      ];
+      const trace = evalCPPNTrace(tile.net, inputVec);
+      const outputs = trace[trace.length - 1];
+
       const inputLabels = ['sin(t)','cos(t)','sin(0.9t)','cos(1.4t)','energy','centroid','flux','low bin','mid bin','high bin'];
       const outputLabels = ['pitch','harmonic','attack','decay','texture','smooth','distort','beat','high','loud'];
-
       const layerNodeCounts = [CPPN_INPUTS, ...tile.net.hiddenSizes, CPPN_OUTPUTS];
       const marginX = 90;
       const span = 670;
@@ -561,9 +592,20 @@
       const xs = layerNodeCounts.map((_, i) => marginX + i * step);
       const ys = layerNodeCounts.map((count, i) => drawNetLayer(ctx, count, xs[i], i === layerNodeCounts.length - 1 ? outputLabels : (i === 0 ? inputLabels : null)));
 
-      tile.net.layers.forEach((layer, i) => {
-        drawConnections(ctx, xs[i], ys[i], xs[i + 1], ys[i + 1], layer.w);
-      });
+      tile.net.layers.forEach((layer, i) => drawConnections(ctx, xs[i], ys[i], xs[i + 1], ys[i + 1], layer.w));
+
+      // neuron activation glow
+      for (let li = 0; li < ys.length; li += 1) {
+        const layerVals = trace[Math.min(li, trace.length - 1)];
+        for (let ni = 0; ni < ys[li].length; ni += 1) {
+          const v = layerVals && layerVals[ni] != null ? layerVals[ni] : 0;
+          const amp = Math.abs(v);
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(56,189,248,${0.1 + amp * 0.55})`;
+          ctx.arc(xs[li], ys[li][ni], 7 + amp * 12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
       const writeActs = (x, ysLayer, layer) => {
         ctx.font = '10px Arial';
@@ -572,10 +614,41 @@
       };
       tile.net.layers.forEach((layer, i) => writeActs(xs[i + 1], ys[i + 1], layer));
 
+      // FFT stream strip
+      const stripY = c.height - 74;
+      const stripH = 16;
+      for (let i = 0; i < 64; i += 1) {
+        const b = fftBins[i] || 0;
+        ctx.fillStyle = `rgba(${40 + i * 3}, ${140 + i}, 255, ${0.15 + b * 0.75})`;
+        ctx.fillRect(20 + i * 12, stripY, 10, stripH);
+      }
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px Arial';
+      ctx.fillText('Realtime FFT input stream', 20, stripY - 6);
+
+      // output meters
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('Realtime CPPN outputs (audio/visual control)', 20, c.height - 34);
+      for (let i = 0; i < Math.min(outputs.length, 10); i += 1) {
+        const v = clamp((outputs[i] + 1) * 0.5, 0, 1);
+        ctx.fillStyle = 'rgba(30,41,59,.9)';
+        ctx.fillRect(260 + i * 55, c.height - 28, 46, 10);
+        ctx.fillStyle = `rgba(34,197,94,${0.5 + v * 0.5})`;
+        ctx.fillRect(260 + i * 55, c.height - 28, 46 * v, 10);
+      }
+
       ctx.fillStyle = '#e2e8f0';
       ctx.font = '13px Arial';
-      ctx.fillText('Each node label near hidden/output neurons is its transfer function.', 16, 20);
+      ctx.fillText('Live ANN: FFT in → neuron activity → output controls', 16, 20);
+      annVizFrame = requestAnimationFrame(() => drawANNRealtime(tile));
+    }
+
+    function showANNPopup(tile) {
+      annTitle.textContent = `Tile ${tile.id + 1} CPPN Graph (Live)`;
+      annVizTile = tile;
+      if (annVizFrame) cancelAnimationFrame(annVizFrame);
       openModal(annModal);
+      drawANNRealtime(tile);
     }
 
     async function ensureAudio() {
@@ -915,15 +988,30 @@
     recombineBtn.addEventListener('click', () => recombineFromStarred());
 
     randomizeBtn.addEventListener('click', () => {
-      cppnTiles.forEach((tile) => {
-        stopTileAudio(tile);
-        tile.net = makeCPPN(tile.id);
-        tile.rating = 5;
-        tile.meta.textContent = 'R: 5.0';
+      if (selectedTileId < 0) {
+        setStatus(appStatus, 'Select a tile first, then Randomize Selected will re-roll only that tile.');
+        return;
+      }
+      const tile = cppnTiles.find((t) => t.id === selectedTileId);
+      if (!tile) return;
+      stopTileAudio(tile);
+      tile.net = makeCPPN(tile.id);
+      tile.rating = 5;
+      tile.meta.textContent = 'R: 5.0';
+      setupTileAudio(tile);
+      setStatus(appStatus, `Tile ${tile.id + 1} randomized. Other tiles were left unchanged.`);
+    });
+
+    infoBtn.addEventListener('click', () => openModal(infoModal));
+    closeInfoBtn.addEventListener('click', () => closeModal(infoModal));
+    closeAnnBtn.addEventListener('click', () => { if (annVizFrame) cancelAnimationFrame(annVizFrame); annVizFrame = 0; annVizTile = null; closeModal(annModal); });
+    [infoModal, annModal].forEach((m) => {
+      m.addEventListener('click', (e) => {
+        if (e.target === m) {
+          if (m === annModal && annVizFrame) { cancelAnimationFrame(annVizFrame); annVizFrame = 0; annVizTile = null; }
+          closeModal(m);
+        }
       });
-      clearStars();
-      selectedTileId = -1;
-      setStatus(appStatus, 'Population randomized and star marks cleared.');
     });
 
     infoBtn.addEventListener('click', () => openModal(infoModal));
